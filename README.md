@@ -42,9 +42,8 @@ For detailed pricing, please visit our website.
 
 ### Get Started
 
-*   **Try the Live Demo:** [Link to your live demo]
-*   **Request a Demo:** [Link to your demo request page]
-
+*   **Try the Live Demo:** demo.imaginea.store
+*   **Request a Demo:** tejas@imaginea.store
 ### About ImagineASTORE
 
 Authentis is a product by ImagineASTORE, a company dedicated to transforming STEM education through interactive animation, making complex concepts easier to understand visually.
