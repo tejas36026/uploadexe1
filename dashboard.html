@@ -1,0 +1,5392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Tracker Dashboard</title>
+    <script src="chart.min.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="kjua.min.js"></script>
+    <style>
+        .app-dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.session-info-detailed {
+    margin-top: 15px;
+}
+
+.info-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.content-preview {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 15px;
+}
+
+.typed-preview, .pasted-preview {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.app-dashboard-nav {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.nav-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.back-to-apps {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+}
+
+.back-to-sessions {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+}
+
+.show-all {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+}
+
+.current-view {
+    margin-left: auto;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.chart-back-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    z-index: 10;
+}
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .session-info {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .chart-canvas {
+            max-height: 300px;
+        }
+
+        .activity-log {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            margin-bottom: 20px;
+        }
+
+        .activity-log h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .activity-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 5px 12px;
+            border: 2px solid #3498db;
+            background: transparent;
+            color: #3498db;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .activity-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: #f8f9fa;
+        }
+
+        .activity-item.typed {
+            border-left-color: #27ae60;
+            background: #d5f4e6;
+        }
+
+        .activity-item.pasted {
+            border-left-color: #e74c3c;
+            background: #fdeaea;
+        }
+
+        .activity-item.fast-typing {
+            border-left-color: #f39c12;
+            background: #fef9e7;
+        }
+
+        .activity-item.thoughtful {
+            border-left-color: #9b59b6;
+            background: #f4ecf7;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .activity-content {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .typing-rhythm {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            margin-bottom: 20px;
+        }
+
+        .rhythm-canvas {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .text-analysis {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            margin-bottom: 20px;
+        }
+
+        .sentence {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            line-height: 1.6;
+        }
+
+        .sentence.typed {
+            background-color: #d5f4e6;
+        }
+
+        .sentence.pasted {
+            background-color: #fdeaea;
+        }
+
+        .sentence.fast {
+            background-color: #fff3cd;
+        }
+
+        .sentence.thoughtful {
+            background-color: #f4ecf7;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .session-info {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        /* Session List Container */
+#session-list {
+    margin-bottom: 20px;
+}
+
+/* Individual Session Item */
+.session-item {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.2);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.session-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px 0 rgba(31, 38, 135, 0.3);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.session-item.active {
+    border: 2px solid #3498db;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+.session-item.expanded {
+    padding: 15px;
+}
+
+.session-item.collapsed {
+    display: none;
+}
+
+/* Session Header */
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.session-item.expanded .session-header {
+    margin-bottom: 12px;
+}
+
+.session-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.session-status {
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.session-times {
+    font-size: 11px;
+    color: #7f8c8d;
+    text-align: right;
+}
+
+.start-time, .end-time {
+    margin-bottom: 2px;
+}
+
+/* Close Button */
+.session-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(231, 76, 60, 0.9);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.session-item.expanded .session-close-btn {
+    display: flex;
+}
+
+.session-close-btn:hover {
+    background: #e74c3c;
+    transform: scale(1.1);
+}
+/* Session Block Styles */
+.session-block {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.session-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Session Apps Container */
+.session-apps-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.session-apps-container h3 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 18px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+/* App Item Styles */
+.app-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #3498db;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.app-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    background: #e8f4fd;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.app-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.app-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+}
+
+.app-activities, .app-duration {
+    background: rgba(52, 152, 219, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+    color: #2980b9;
+    font-weight: 600;
+}
+
+.app-details {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.app-details div {
+    margin-bottom: 4px;
+}
+
+.no-apps {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Context Group Styles */
+.context-group {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #3498db;
+}
+
+.context-header {
+    background: rgba(52, 152, 219, 0.1);
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.context-header strong {
+    color: #2980b9;
+}
+
+.context-header small {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+/* Filter Section Styles */
+.filters-section {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.filters-section h3 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.date-input, .select-input {
+    padding: 10px;
+    border: 2px solid #e1e8ed;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+    background: white;
+}
+
+.date-input:focus, .select-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    color: white;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #3498db;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.btn-link:hover {
+    color: #2980b9;
+}
+
+/* Filter Summary */
+.filter-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Loading and Error States */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #7f8c8d;
+    font-size: 16px;
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #3498db;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+.error {
+    text-align: center;
+    padding: 40px;
+    color: #e74c3c;
+    font-size: 16px;
+    background: #ffeaea;
+    border-radius: 10px;
+    border: 1px solid #e74c3c;
+}
+
+/* Tooltip Styles */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+[data-tooltip]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+}
+
+/* Chart Container Enhancements */
+.chart-container {
+    position: relative;
+}
+
+.chart-container .chart-back-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 10;
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.chart-container .chart-back-btn:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* Enhanced Session Stats */
+.session-stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.session-stats span {
+    font-size: 12px;
+    color: #34495e;
+    font-weight: 500;
+    padding: 4px 10px;
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 15px;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+/* Responsive Design Enhancements */
+@media (max-width: 768px) {
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .date-range {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .app-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .session-summary {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* Animation Keyframes */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.session-block {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Scrollbar Styling */
+.activity-log::-webkit-scrollbar,
+.session-apps-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.activity-log::-webkit-scrollbar-track,
+.session-apps-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+
+.activity-log::-webkit-scrollbar-thumb,
+.session-apps-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.activity-log::-webkit-scrollbar-thumb:hover,
+.session-apps-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+.app-item.collapsed {
+    display: none;
+}
+
+
+/* Find and replace the existing .show-all-sessions rule with this */
+.show-all-sessions {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 10px 20px; /* MODIFIED */
+    border-radius: 8px;   /* MODIFIED */
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: none; /* This correctly hides it by default */
+}
+
+/* Ensure this rule for visibility is present */
+.show-all-sessions.visible {
+    display: inline-block;
+}
+
+/* Ensure the hover effect from .btn also applies or is similar */
+.show-all-sessions:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Session Stats Row - Compact */
+.session-stats {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.session-item:not(.expanded) .session-stats {
+    display: none;
+}
+
+.session-stats span {
+    font-size: 11px;
+    color: #34495e;
+    font-weight: 500;
+    padding: 3px 8px;
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+/* Session Apps and Context - Compact */
+.session-apps, .session-context {
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.session-item:not(.expanded) .session-apps,
+.session-item:not(.expanded) .session-context {
+    display: none;
+}
+
+.session-apps strong, .session-context strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Compact View Summary */
+.session-summary {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+        display: flex;
+
+        justify-content: space-between; /* This is the key to pushing items apart */
+
+}
+.session-summary-stats {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* The space between the stat items */
+}
+
+.word-indicator-widget {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background-color: #fff;
+}
+
+
+.session-item.expanded .session-summary {
+    display: none;
+}
+.word-indicator-bar {
+    display: flex;
+    width: 60px; /* You can adjust the width of the bar */
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #e0e0e0;
+}
+
+
+.session-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.session-summary-item span {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Add this to your style block */
+.app-item.expanded-app {
+    border-left: 4px solid #e74c3c; /* A different color to show it's active */
+    background: #fdeaea;
+}
+
+#showAllAppsBtn.visible {
+    display: inline-block !important; /* Makes the button appear */
+    margin-left: auto; /* Pushes the button to the right */
+}
+
+
+
+.no-data {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 20px;
+    font-style: italic;
+}
+
+
+
+/* No Sessions Message */
+.no-sessions {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    color: #7f8c8d;
+    font-size: 16px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+
+.print-app-btn { 
+            background: none; 
+            border: none; 
+            cursor: pointer; 
+            padding: 5px; 
+        }
+
+        .print-app-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 12px;
+}
+
+.print-app-btn:hover {
+    background: #5a6268;
+}
+
+
+.print-app-btn svg { 
+            width: 20px; 
+            height: 20px; 
+            fill: #7f8c8d; 
+            transition: fill 0.2s;
+        }
+        .print-app-btn:hover svg { 
+            fill: #3498db; 
+        }
+        /* Print-specific styles */
+
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .session-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .session-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .session-stats span {
+        align-self: flex-start;
+    }
+}
+
+/* Hover Effects */
+.session-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.1), transparent);
+    transition: left 0.6s;
+    pointer-events: none;
+}
+
+.session-item:hover::before {
+    left: 100%;
+}
+
+/* Add these new styles to your CSS block */
+.word-indicator-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+
+
+.word-indicator-typed {
+    height: 100%;
+    background-color: #2ecc71; /* Green for Typed Words */
+}
+.word-indicator-widget:empty, .word-indicator-widget:has(.word-indicator-text:where(:empty, :not(:matches([data-text*='T / 0P'])))) { display: none; }
+.word-indicator-pasted {
+    height: 100%;
+    background-color: #e74c3c; /* Red for Pasted Words */
+}
+
+.word-indicator-text {
+    font-size: 11px;
+    color: #555;
+    font-weight: 500;
+}
+
+
+
+/* Status Icons */
+.session-title::before {
+    content: attr(data-status-icon);
+    font-size: 16px;
+    margin-right: 5px;
+}
+
+/* Loading State */
+.session-item.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.session-item.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #3498db;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+@media print {
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    /* Rule 1: By default, hide all direct children of the .dashboard */
+    .dashboard > * {
+        display: none !important;
+    }
+
+    /* Rule 2: Show the print header and any container we mark with .printing */
+    #print-header,
+    .dashboard > .printing {
+        display: block !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+    }
+    .dashboard > .printing {
+        display: block !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        page-break-before: auto;
+    }
+
+    /* NEW Rule 2b: If a container is printing, its children should also be visible */
+    .printing > * {
+        display: block !important;
+    }
+    .printing.charts-grid {
+        display: grid !important; /* Restore grid layout for charts */
+    }
+
+
+    .app-item, .text-analysis, .chart-container, .typing-rhythm, .sentence {
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+
+    .sentence {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .btn, .nav-btn, .print-app-btn, .session-close-btn {
+        display: none !important;
+    }
+
+}
+
+
+    </style>
+</head>
+<body>
+    <div id="print-header" style="display: none;">
+        <h1>Activity Tracker Report</h1>
+        <p>Generated on: <span id="print-date"></span></p>
+    </div>
+
+    <div class="dashboard">
+        <div class="header" style="display: none;">
+            <h1>Activity Tracker Dashboard</h1>
+            <div class="session-info">
+                <div class="info-item">
+                    <span class="info-label">Session Duration</span>
+                    <span class="info-value" id="sessionDuration">--:--:--</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Keystrokes</span>
+                    <span class="info-value" id="totalKeystrokes">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Words Typed</span>
+                    <span class="info-value" id="wordsTyped">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Active Applications</span>
+                    <span class="info-value" id="activeApps">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" style="display: none;"
+         onclick="generatePDF()">Download PDF Report</button>
+            <button class="btn btn-success" onclick="refreshData()" style="display: none;" >Refresh Data</button>
+        </div>
+        <div id="app-summary-report"></div>
+        <div id="session-list"></div>
+        <div id="session-details"></div>
+        <div id="app-list"></div>
+
+        <div class="stats-grid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-number" id="avgWPM">0</div>
+                <div class="stat-label">Avg WPM</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pasteCount">0</div>
+                <div class="stat-label">Paste Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="mouseClicks">0</div>
+                <div class="stat-label">Mouse Clicks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="backspaceCount">0</div>
+                <div class="stat-label">Corrections</div>
+            </div>
+        </div>
+
+        
+        <!-- <div class="charts-grid">
+            <div class="chart-container">
+                <h3 class="chart-title">Session Overview</h3>
+                <canvas id="sessionChart" class="chart-canvas"></canvas>
+            </div>
+            
+        </div> -->
+        <!-- <div class="chart-container">
+            <h3 class="chart-title">📊 Interactive Session Explorer</h3>
+            <canvas id="drillDownChart" class="chart-canvas"></canvas>
+        </div> -->
+        
+        <!-- <div class="chart-container">
+            <h3 class="chart-title">App Usage Breakdown</h3>
+            <canvas id="appUsageChart" class="chart-canvas"></canvas>
+        </div> -->
+        <div id="sessions-container"></div>
+     
+        <div id="content-container">
+            <h3>Select a session to view content</h3>
+            <div id="session-content"></div>
+        </div>
+        <div class="chart-container" id="per-sentence-chart-container" >
+            <h3 class="chart-title">Per Sentence Summary original</h3>
+            <canvas id="perSentenceChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="typing-rhythm">
+            <h3>Typing Rhythm Pattern</h3>
+            <canvas id="rhythmCanvas" class="rhythm-canvas"></canvas>
+        </div>
+
+        <div class="text-analysis">
+            <h3>Text Analysis & Classification</h3>
+            <div id="textContent"></div>
+        </div>
+        <div class="chart-container">
+            <h3 class="chart-title">Data QR Code</h3>
+            <div id="qrCodeHolder"></div>
+        </div>
+        <div class="chart-container">
+            <h3 class="chart-title">Content Origin </h3>
+            <canvas id="originChart" class="chart-canvas"></canvas>
+        </div>
+
+            <div class="chart-container" style="display: none;">
+                <h3 class="chart-title">Activity Over Time</h3>
+                <canvas id="activityChart" class="chart-canvas"></canvas>
+            </div>
+          
+            <div class="chart-container" id="sentence-duration-container">
+                <h3 class="chart-title">Sentence Duration (Focus Time in ms)</h3>
+                <canvas id="sentenceDurationChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container" id="sentence-wpm-container">
+                <h3 class="chart-title">Sentence Typing Speed (WPM)</h3>
+                <canvas id="sentenceWpmChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container" id="sentence-chars-container">
+                <h3 class="chart-title">Sentence Typed Characters</h3>
+                <canvas id="sentenceCharsChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container" id="sentence-corrections-container">
+                <h3 class="chart-title">Sentence Corrections (Backspaces + Deletes)</h3>
+                <canvas id="sentenceCorrectionsChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container" id="combined-sentence-container">
+                <h3 class="chart-title">Combined Sentence Performance</h3>
+                <canvas id="combinedSentenceChart" class="chart-canvas"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h3 class="chart-title">Application Usage</h3>
+                <canvas id="appChart" class="chart-canvas"></canvas>
+            </div>
+   
+            <div class="chart-container">
+                <h3 class="chart-title">Keystroke Distribution</h3>
+                <canvas id="keystrokeChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Mouse Movement Heatmap</h3>
+                <canvas id="mouseChart" class="chart-canvas"></canvas>
+            </div>
+           
+            <div class="chart-container" id="combined-summary-container">
+                <h3 class="chart-title">Combined Daily Summary</h3>
+                <canvas id="combinedDailyChart" class="chart-canvas"></canvas>
+            </div>
+    
+        </div>
+
+        <!-- <div class="typing-rhythm">
+            <h3>Typing Rhythm Pattern</h3>
+            <canvas id="rhythmCanvas" class="rhythm-canvas"></canvas>
+        </div>
+
+        <div class="text-analysis">
+            <h3>Text Analysis & Classification</h3>
+            <div id="textContent"></div>
+        </div> -->
+
+        <div class="activity-log" style="display: none;">
+            <h3>Activity Log</h3>
+            <div class="activity-filters">
+                <button class="filter-btn active" onclick="filterActivities('all')">All</button>
+                <button class="filter-btn" onclick="filterActivities('keystroke')">Keystrokes</button>
+                <button class="filter-btn" onclick="filterActivities('mouse')">Mouse</button>
+                <button class="filter-btn" onclick="filterActivities('paste')">Paste</button>
+            </div>
+            <div id="activityList"></div>
+        </div>
+        <div id="app-summary-report"></div>
+        
+                <div id="print-output"></div>
+
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        
+    function printCurrentDashboardView(event) {
+    // Stop the click from accidentally collapsing the view
+    if (event) event.stopPropagation();
+
+    // 1. Find all visible containers we want to print.
+    const elementsToPrint = document.querySelectorAll(
+        '.header, #session-apps-container, .stats-grid, .text-analysis, .typing-rhythm, .chart-container'
+    );
+
+    elementsToPrint.forEach(el => {
+
+        if (el.style.display !== 'none' && el.offsetParent !== null) {
+            el.classList.add('printing');
+        }
+        
+    });
+    
+    // 3. Set the date on the (hidden) print header
+    document.getElementById('print-date').textContent = new Date().toLocaleString();
+
+    // 4. Temporarily disable chart animations for a clean, instant render.
+    Chart.defaults.animation = false;
+
+    // 5. Set up a listener to clean up AFTER the print dialog closes.
+    const handleAfterPrint = () => {
+        // Re-enable chart animations for normal viewing
+        Chart.defaults.animation = true;
+
+        // Remove the 'printing' class from all elements
+        elementsToPrint.forEach(el => el.classList.remove('printing'));
+
+        // IMPORTANT: Remove this listener so it doesn't fire multiple times.
+        window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    // 6. Wait a moment for everything to render, then trigger the print dialog.
+    setTimeout(() => {
+        window.print();
+    }, 500); // 500ms delay is safe
+}
+
+
+
+        function debugSessions() {
+    console.log('=== SESSION DEBUG ===');
+    console.log('Total activities:', allTrackingData.length);
+
+    ipcRenderer.on('generate-app-summary-report', (event, appSummaryData) => {
+    // Hide all other dashboard elements
+    document.querySelector('.header').style.display = 'none';
+    document.getElementById('session-list').style.display = 'none';
+    // ...hide any others...
+    
+    const reportContainer = document.getElementById('app-summary-report');
+    reportContainer.innerHTML = '<h2>Top Application Usage Summary</h2>'; // Add a title
+    reportContainer.classList.add('printing'); // Mark for printing
+    reportContainer.style.display = 'block'; // Make it visible
+
+    appSummaryData.forEach((app, index) => {
+        // ... code to create and append the app-summary-item divs ...
+        // (This part is the same as the previous full answers)
+    });
+
+
+
+
+
+
+
+ ipcRenderer.on('trigger-pdf-generation', () => {
+    // Set the date on the print header.
+    document.getElementById('print-date').textContent = new Date().toLocaleString();
+
+    // --- THE CRUCIAL FIX ---
+
+    // 1. Globally disable Chart.js animations. This forces all charts to
+    //    render instantly without any transition effects.
+    Chart.defaults.animation = false;
+
+    // 2. Define a function that will run AFTER the user closes the print dialog.
+    const handleAfterPrint = () => {
+        // 4. Re-enable animations so the on-screen charts behave normally again.
+        Chart.defaults.animation = true;
+
+        // 5. IMPORTANT: Remove this event listener so it doesn't fire multiple times
+        //    if the user prints again.
+        window.removeEventListener('afterprint', handleAfterPrint);
+    };
+
+    // 3. Set up a listener for the browser's 'afterprint' event.
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    // The 500ms timeout is still a good practice. It gives the DOM a moment
+    // to process the instant chart renders before opening the print dialog.
+    setTimeout(() => {
+        window.print();
+    }, 500);
+});
+
+    // After building the HTML, signal back to main.js that it's ready.
+    ipcRenderer.send('report-ready-for-pdf');
+});
+
+
+    const sessions = groupDataBySession();
+    console.log('Sessions found:', Object.keys(sessions).length);
+    
+    Object.entries(sessions).forEach(([sessionId, session]) => {
+        console.log(`${sessionId}:`, {
+            activities: session.activities.length,
+            start: new Date(session.startTime).toLocaleString(),
+            end: new Date(session.endTime).toLocaleString(),
+            firstActivitySessionID: session.activities[0]?.sessionID,
+            lastActivitySessionID: session.activities[session.activities.length-1]?.sessionID
+        });
+    });
+    
+    const ChartManager = {
+    charts: {},
+    
+    // Safely destroy a chart
+    destroyChart: function(chartKey) {
+        if (this.charts[chartKey]) {
+            try {
+                // Remove event listeners first
+                const chart = this.charts[chartKey];
+                if (chart.canvas) {
+                    chart.canvas.style.cursor = 'default';
+                }
+                
+                // Destroy the chart
+                chart.destroy();
+                this.charts[chartKey] = null;
+                delete this.charts[chartKey];
+                
+                // Force garbage collection hint
+                if (window.gc) window.gc();
+                
+            } catch (error) {
+                console.error('Error destroying chart:', error);
+                this.charts[chartKey] = null;
+                delete this.charts[chartKey];
+            }
+        }
+    },
+    
+    // Clean canvas element
+    cleanCanvas: function(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (canvas) {
+            // Remove all event listeners
+            const newCanvas = canvas.cloneNode(true);
+            canvas.parentNode.replaceChild(newCanvas, canvas);
+            return newCanvas.getContext('2d');
+        }
+        return null;
+    }
+};
+
+// dashboard.html - Add this inside the <script> tag
+
+    ipcRenderer.on('generate-filtered-app-report', (event, reportData) => {
+    const reportContainer = document.getElementById('reportContainer');
+    
+    // --- THIS IS THE NEW, SAFER CHECK ---
+    if (!reportContainer) {
+        console.error('CRITICAL ERROR: The HTML element with id="reportContainer" was not found. Cannot display the report for printing.');
+        // Do not proceed, as it would cause a crash.
+        return;
+    }
+    
+    // Clear previous report
+    reportContainer.innerHTML = ''; 
+
+    let html = `
+        <style>
+            /* Add some basic styling for a professional-looking printout */
+            body { font-family: sans-serif; }
+            .report-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+            .report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            .report-table th, .report-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .report-table th { background-color: #f2f2f2; }
+            .report-table tr:nth-child(even) { background-color: #f9f9f9; }
+        </style>
+        <div class="report-header">
+            <h1>Application Text Activity Summary</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Application Name</th>
+                    <th>Total Keystrokes</th>
+                    <th>Total Pastes</th>
+                    <th>Total Characters (Approx.)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    reportData.forEach(app => {
+        html += `
+            <tr>
+                <td>${app.name}</td>
+                <td>${app.keystrokes.toLocaleString()}</td>
+                <td>${app.pastes.toLocaleString()}</td>
+                <td>${app.characters.toLocaleString()}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    reportContainer.innerHTML = html;
+
+    // IMPORTANT: Signal back to main.js that the report is rendered and ready.
+    ipcRenderer.send('report-ready-for-pdf');
+});
+
+
+// Alternatively, you could update the HTML template to use the correct function name
+// In the displaySessionApps function, change this line:
+// onclick="printIndividualApp(event, '${app.name}', '${app.title}', '${sessionData.sessionID}')"
+// 
+// To this:
+// onclick="printSpecificApp(event, '${app.name}', '${app.title}', '${sessionData.sessionID}')"
+
+// However, if you use printSpecificApp directly, you'll need to add event.stopPropagation() 
+// to the beginning of that function to prevent event bubbling:
+
+
+// In dashboard.html <script> tag
+
+
+
+    // Check for sessionID inconsistencies
+    const uniqueSessionIDs = [...new Set(allTrackingData.map(a => a.sessionID))];
+    console.log('Unique sessionIDs in data:', uniqueSessionIDs);
+}
+
+        document.addEventListener('DOMContentLoaded', loadSessionList);
+        ipcRenderer.on('new-session-saved', loadSessionList);
+
+        ipcRenderer.on('focus-session', (event, sessionIdToFocus) => {
+        // The dashboard might receive this message before the session list is fully rendered.
+        // We use a small delay and retry mechanism to ensure the element exists.
+        setTimeout(() => {
+            // Find the session item on the page using its data-session-id attribute
+            const sessionDiv = document.querySelector(`.session-item[data-session-id="${sessionIdToFocus}"]`);
+            
+            if (sessionDiv) {
+                console.log(`Focusing on session: ${sessionIdToFocus}`);
+                // Programmatically click the session div to trigger your existing expand logic
+                sessionDiv.click();
+                // Scroll it into view for a better user experience
+                sessionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                console.warn(`Could not find session div to focus: ${sessionIdToFocus}`);
+            }
+        }, 200); // 200ms delay to allow for rendering
+    });
+
+        ipcRenderer.send('dashboard-ready');
+
+async function loadSessionList() {
+    const sessions = await ipcRenderer.invoke('get-all-sessions');
+    const listElement = document.getElementById('session-list');
+    
+    // Add show all sessions button
+
+        if (!document.getElementById('showAllSessionsBtn')) {
+        const showAllBtn = document.createElement('button');
+        showAllBtn.id = 'showAllSessionsBtn';
+        showAllBtn.className = 'show-all-sessions';
+        showAllBtn.textContent = '📋 Show All Sessions';
+        showAllBtn.onclick = showAllSessions;
+        document.querySelector('.controls').appendChild(showAllBtn);
+    }
+    
+    listElement.innerHTML = '';
+
+    if (sessions.length === 0) {
+        listElement.innerHTML = '<div class="no-sessions">No sessions recorded yet.</div>';
+        return;
+    }
+console.log('sessions :>> ', sessions);
+    sessions.forEach((session, index) => {
+        console.log('session :>> ', session);
+        const sessionDiv = document.createElement('div');
+        sessionDiv.className = 'session-item';
+        sessionDiv.dataset.sessionId = session.id;
+        const sessionActivities = allTrackingData.filter(act => act.sessionID === session.id);
+
+        if (session.apps) {
+            // Loop through each app recorded in the session (e.g., 'Google Chrome', 'Electron').
+            for (const appName in session.apps) {
+                const appData = session.apps[appName];
+                // Check if this app has a valid 'activities' array.
+                if (appData && Array.isArray(appData.activities)) {
+                    // Add this app's activities to our main list for the session.
+                    sessionActivities.push(...appData.activities);
+                }
+            }
+        }
+
+        const counts = calculateWordCounts(sessionActivities);
+        const { typedWords, pastedWords, totalWords } = counts;
+        let indicatorWidgetHtml = '';
+
+
+        if (typedWords > 0 || pastedWords > 0) {
+
+                // if (totalWords > 0) {
+            const typedPercent = (typedWords / totalWords) * 100;
+            const pastedPercent = 100 - typedPercent;
+            
+            indicatorWidgetHtml = `
+                <div class="word-indicator-widget">
+                    <div class="word-indicator-bar">
+                        <span class="word-indicator-typed" style="width: ${typedPercent}%;"></span>
+                        <span class="word-indicator-pasted" style="width: ${pastedPercent}%;"></span>
+                    </div>
+                    <span class="word-indicator-text">(${typedWords}T / ${pastedWords}P)</span>
+                </div>
+            `;
+        }
+
+        const startTime = new Date(session.startTime);
+        const endTime = session.endTime ? new Date(session.endTime) : null;
+        const duration = session.duration ? formatDuration(session.duration) : 'Ongoing';
+        const totalActivities = session.totalActivities || 0;
+        const apps = session.apps ? Object.keys(session.apps) : [];
+        const appsDisplay = apps.length > 0 ? apps.slice(0, 2).join(', ') + (apps.length > 2 ? ` +${apps.length - 2}` : '') : 'No apps';
+        const statusIcon = endTime ? '✅' : '🔄';
+        const statusText = endTime ? 'COMPLETED' : 'ACTIVE';
+
+
+        
+                sessionDiv.innerHTML = `
+            <button class="session-close-btn" onclick="closeSession(event, '${session.id}')">✕</button>
+            <div class="session-header">
+                <div class="session-title">
+                    ${statusIcon} <strong>Session #${session.sessionNumber || index + 1}</strong>
+                    <span class="session-status">${statusText}</span>
+                </div>
+                <div class="session-times">
+                     <div class="start-time">🕐 ${startTime.toLocaleTimeString()}</div>
+                    ${endTime ? `<div class="end-time">🏁 ${endTime.toLocaleTimeString()}</div>` : ''}
+                </div>
+            </div>
+            
+            <div class="session-summary">
+                <div class="session-summary-stats">
+                    <div class="session-summary-item">⏱️ <span>${duration}</span></div>
+                    <div class="session-summary-item">📊 <span>${totalActivities}</span></div>
+                    <div class="session-summary-item">🪟 <span>${apps.length}</span></div>
+                </div>
+                ${indicatorWidgetHtml}
+            </div>
+        `;
+
+
+        
+        sessionDiv.addEventListener('click', (e) => {
+            if (e.target.classList.contains('session-close-btn')) return;
+            sessionDiv.classList.contains('expanded') ? showAllSessions() : expandSession(sessionDiv, session);
+        });
+
+
+
+        listElement.appendChild(sessionDiv);
+    });
+}
+/**
+ * [FINAL, SELF-CONTAINED VERSION]
+ * Generates a QR code containing a complete, self-contained HTML page
+ * as a Data URI. This requires no server and works completely offline.
+ *
+ * @param {Array} appData - The array of activity objects for a specific app.
+ * @param {string} appName - The name of the application.
+ * @param {string} windowTitle - The window title of the application.
+ */
+ 
+ 
+
+
+
+
+
+
+
+/**
+ * [OFFLINE IMAGE SOLUTION]
+ * Generates a QR code containing a static IMAGE of the chart.
+ * This works 100% offline but is not interactive.
+ *
+ * @param {Array} appData - The array of activity objects for a specific app.
+ * @param {string} appName - The name of the application.
+ */
+
+ 
+/**
+ * [DEFINITIVE OFFLINE SOLUTION]
+ * Generates a QR code containing a lightweight SVG image of the chart.
+ * This works 100% offline, is not interactive, and is small enough to
+ * never fail with a size error.
+ *
+ * @param {Array} appData - The array of activity objects for a specific app.
+ * @param {string} appName - The name of the application.
+ * @param {string} windowTitle - The window title of the application.
+ */
+
+ /**
+ * [DEFINITIVE VERTICAL OFFLINE SOLUTION]
+ * Generates a QR code containing a clean, vertical, formatted TEXT-BASED chart.
+ * This is guaranteed to be small enough, works completely offline,
+ * and is readable by every QR scanner.
+ *
+ * @param {Array} appData - The array of activity objects for a specific app.
+ * @param {string} appName - The name of the application.
+ * @param {string} windowTitle - The window title of the application.
+ */
+
+
+
+/**
+ * [FINAL OFFLINE TEXT-ONLY SOLUTION]
+ * Generates a QR code containing a clean, formatted TEXT-ONLY summary.
+ * This is guaranteed to be small enough, works 100% offline, is readable
+ * by every QR scanner, and will NEVER cause a "code length overflow" error.
+ *
+ * @param {Array} appData - The array of activity objects.
+ * @param {string} appName - The name of the application.
+ * @param {string} windowTitle - The window title.
+ */
+ function renderSummaryQRCode(appData, appName, windowTitle) {
+    const qrHolder = document.getElementById('qrCodeHolder');
+    qrHolder.innerHTML = ''; // Clear previous
+
+    if (!appData || appData.length === 0) {
+        qrHolder.innerHTML = '<p class="no-data">No data to generate QR Code.</p>';
+        return;
+    }
+
+    // --- 1. Get the summary data ---
+    const { typedWords, pastedWords } = calculateWordCounts(appData);
+    const keystrokes = appData.filter(a => a.type === 'keystroke').length;
+    const pastes = appData.filter(a => a.type === 'paste').length;
+    const sentenceMetrics = getSentenceMetrics(appData);
+    let typedCharsTotal = 0, pastedCharsTotal = 0;
+    sentenceMetrics.forEach(s => {
+        s.isPaste ? pastedCharsTotal += s.text.length : typedCharsTotal += s.text.length;
+    });
+
+    // --- 2. Build a simple, clean text string ---
+    // This string is very small and will never overflow the QR code limit.
+    let summaryText = `--- Activity Summary ---\n\n`;
+    summaryText += `App: ${appName}\n`;
+    summaryText += `Window: ${windowTitle.substring(0, 40)}\n\n`; // Truncate long titles
+    summaryText += `--- Metrics ---\n`;
+    summaryText += `Typed Words: ${typedWords}\n`;
+    summaryText += `Pasted Words: ${pastedWords}\n`;
+    summaryText += `Typed Chars: ${typedCharsTotal}\n`;
+    summaryText += `Pasted Chars: ${pastedCharsTotal}\n`;
+    summaryText += `Total Keystrokes: ${keystrokes}\n`;
+    summaryText += `Paste Events: ${pastes}`;
+
+    // --- 3. Generate the QR code with the guaranteed small text ---
+    try {
+        const qrElement = kjua({
+            text: summaryText,
+            render: 'image',
+            size: 220,
+        });
+        qrHolder.appendChild(qrElement);
+        const infoText = document.createElement('p');
+        infoText.textContent = `Scan to view a text summary.`;
+        qrHolder.appendChild(infoText);
+    } catch (e) {
+        console.error("This should be impossible, but QR generation failed:", e);
+        qrHolder.innerHTML = `<p class="error">An unexpected error occurred.</p>`;
+    }
+}
+
+ 
+function processDailyData(activities) {
+    // For debugging: Let's see what data we're starting with.
+    console.log(`[processDailyData] Received ${activities.length} activities.`);
+console.log('activities :>> ', activities);
+  
+}
+
+
+
+/**
+ * Renders a generic bar chart.
+ * @param {string} chartId The ID of the canvas element.
+ * @param {string} chartKey The key for the chart instance in the `charts` object.
+ * @param {string} title The title of the chart.
+ * @param {Array} labels The labels for the x-axis.
+ * @param {Object} dataset The dataset object { label, data, color }.
+ */
+
+function expandSession(sessionDiv, session) {
+    const allSessions = document.querySelectorAll('.session-item');
+    const showAllBtn = document.getElementById('showAllSessionsBtn');
+    let foundClickedSession = false;
+
+    if (sessionDiv.classList.contains('expanded')) {
+        showAllSessions();
+        return; // Exit the function
+    }
+
+    // Hide all other sessions
+    allSessions.forEach(item => {
+        item.classList.remove('expanded', 'active', 'collapsed');
+        if (item === sessionDiv) {
+            // We've found the session that was clicked.
+            // From now on, every subsequent session will be hidden.
+            foundClickedSession = true;
+        } else if (foundClickedSession) {
+            // If we've already passed the clicked session, hide this item.
+            item.classList.add('collapsed');
+        }
+
+    });
+    
+    // Expand clicked session
+    sessionDiv.classList.add('expanded', 'active');
+    
+    // Show the "Show All Sessions" button
+    showAllBtn.classList.add('visible');
+    
+    // Load session data
+    displaySessionWithApps(session.id, session.sessionNumber);
+}
+
+
+function getSentenceMetrics(activities) {
+    if (!activities || activities.length === 0) {
+        return [];
+    }
+
+    const keyNameToChar = {
+        'DOT': '.',
+        'COMMA': ',',
+        'SEMICOLON': ';',
+        'APOSTROPHE': "'",
+        'QUOTE': '"',
+        'FORWARD SLASH': '/',
+        'BACKSLASH': '\\',
+        'MINUS': '-',
+        'EQUALS': '=',
+        'OPEN BRACKET': '[',
+        'CLOSE BRACKET': ']',
+        'BACKQUOTE': '`'
+    };
+
+    const nonPrintableKeys = new Set([
+        'LEFT CTRL', 'RIGHT CTRL', 'CTRL', 'CONTROL', 'COMMAND',
+        'LEFT SHIFT', 'RIGHT SHIFT', 'SHIFT',
+        'LEFT ALT', 'RIGHT ALT', 'ALT', 'OPTION',
+        'CAPS LOCK', 'TAB', 'ESCAPE', 'ENTER', 'RETURN', 'BACKSPACE', 'DELETE',
+        'HOME', 'END', 'PAGE UP', 'PAGE DOWN', 'ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT',
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+    ]);
+
+    const sentences = [];
+    let currentText = '';
+    let backspaces = 0;
+    let deletes = 0;
+    let startTime = activities.length > 0 ? activities[0].timestamp : new Date().toISOString();
+    const TYPING_PAUSE_THRESHOLD = 3000;
+
+    const finalizeSentence = (endTime) => {
+        if (currentText.trim().length > 0) {
+            const duration = new Date(endTime) - new Date(startTime);
+            const words = currentText.trim().split(/\s+/).filter(Boolean).length;
+            const wpm = (duration > 500 && words > 0) ? (words / (duration / 60000)) : 0;
+            sentences.push({
+                text: currentText.trim(),
+                typedChars: currentText.length,
+                wpm: Math.round(wpm),
+                duration: duration,
+                backspaces: backspaces,
+                deletes: deletes,
+                isPaste: false,
+            });
+        }
+        currentText = '';
+        backspaces = 0;
+        deletes = 0;
+        startTime = endTime;
+    };
+
+    for (let i = 0; i < activities.length; i++) {
+        const activity = activities[i];
+        const prevActivity = i > 0 ? activities[i - 1] : null;
+
+        if (prevActivity) {
+            const pause = new Date(activity.timestamp) - new Date(prevActivity.timestamp);
+            if (pause > TYPING_PAUSE_THRESHOLD) {
+                finalizeSentence(prevActivity.timestamp);
+                startTime = activity.timestamp;
+            }
+        }
+
+        if (activity.type === 'paste' && activity.text) {
+            finalizeSentence(activity.timestamp);
+            sentences.push({
+                text: activity.text,
+                typedChars: activity.text.length,
+                wpm: 0,
+                duration: 500,
+                backspaces: 0,
+                deletes: 0,
+                isPaste: true,
+            });
+            startTime = activity.timestamp;
+
+        } else if (activity.type === 'keystroke' && activity.key) {
+            const keyName = activity.key.toUpperCase();
+            let charToAdd = null;
+
+            if (keyName === 'BACKSPACE') {
+                backspaces++;
+                if (currentText.length > 0) currentText = currentText.slice(0, -1);
+            } else if (keyName === 'DELETE') {
+                deletes++;
+            } else if (keyName === 'SPACE' || keyName === 'SPACEBAR') {
+                charToAdd = ' '; // Correctly handle spaces
+            } else if (keyNameToChar[keyName]) {
+                charToAdd = keyNameToChar[keyName];
+            } else if (!nonPrintableKeys.has(keyName)) {
+                charToAdd = activity.key; // Preserves case for letters and shifted symbols
+            }
+
+            if (charToAdd) {
+                currentText += charToAdd;
+                // --- THIS IS THE CRITICAL FIX ---
+                // We test 'charToAdd' (the character '.'), NOT 'activity.key' (the name "DOT")
+                if (/[.!?]/.test(charToAdd)) {
+                    finalizeSentence(activity.timestamp);
+                }
+            }
+        }
+    }
+
+    if (activities.length > 0) {
+        finalizeSentence(activities[activities.length - 1].timestamp);
+    }
+    
+    console.log('--- [DEBUG] Final sentences object before returning:', sentences);
+    return sentences.reverse();
+}
+
+
+function calculateWordCounts(activities) {
+    if (!activities || activities.length === 0) {
+        return { typedWords: 0, pastedWords: 0, totalWords: 0 };
+    }
+
+    // Use our highly accurate sentence processor to get correctly formatted text blocks.
+    const sentences = getSentenceMetrics(activities);
+
+    if (sentences.length === 0) {
+        return { typedWords: 0, pastedWords: 0, totalWords: 0 };
+    }
+
+    let typedWords = 0;
+    let pastedWords = 0;
+
+    // Loop through the processed sentences and count the words in each.
+    for (const sentence of sentences) {
+        const wordCount = (sentence.text || '').trim().split(/\s+/).filter(Boolean).length;
+        
+        if (sentence.isPaste) {
+            pastedWords += wordCount;
+        } else {
+            typedWords += wordCount;
+        }
+    }
+
+    return { typedWords, pastedWords, totalWords: typedWords + pastedWords };
+}
+
+ 
+function renderPerSentenceSummaryChart(activities) {
+    const container = document.getElementById('per-sentence-chart-container');
+    
+    const canvas = document.getElementById('perSentenceChart');
+    if (!canvas || !container) return;
+
+    if (!document.getElementById('perSentenceChart')) {
+        container.innerHTML = '<h3>Per Sentence Summary</h3><canvas id="perSentenceChart" class="chart-canvas"></canvas>';
+    }
+
+    const ctx = document.getElementById('perSentenceChart').getContext('2d');
+    if (!ctx) {
+        console.error("Failed to get canvas context for perSentenceChart.");
+        return;
+    }
+
+    if (charts.perSentenceChart) {
+        charts.perSentenceChart.destroy();
+    }
+
+    const sentenceMetrics = getSentenceMetrics(activities);
+    if (sentenceMetrics.length === 0) {
+        container.innerHTML = `
+            <h3 class="chart-title">Per Sentence Summary</h3>
+            <div class="no-data">No sentence data to display for this selection.</div>
+        `;
+        return; // Stop the function here
+    }
+
+    const labels = sentenceMetrics.map((s, i) => `S${sentenceMetrics.length - i}`);
+    const wpmData = sentenceMetrics.map(s => s.wpm).reverse();
+    const typedCharsData = sentenceMetrics.map(s => s.isPaste ? 0 : s.typedChars).reverse();
+    const correctionsData = sentenceMetrics.map(s => s.backspaces + s.deletes).reverse();
+    const pasteData = sentenceMetrics.map(s => s.isPaste ? s.typedChars : 0).reverse();
+
+    charts.perSentenceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'WPM',
+                data: wpmData,
+                backgroundColor: 'rgba(70, 130, 180, 0.7)',
+                yAxisID: 'yLeft',
+            }, {
+                label: 'Corrections',
+                data: correctionsData,
+                backgroundColor: 'rgba(60, 179, 113, 0.7)',
+                yAxisID: 'yLeft',
+            }, {
+                label: 'Typed Chars',
+                data: typedCharsData,
+                backgroundColor: 'rgba(135, 206, 250, 0.7)',
+                yAxisID: 'yRight',
+            }, {
+                label: 'Pasted Chars',
+                data: pasteData,
+                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                yAxisID: 'yRight',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Per Sentence Summary (Latest First)' },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        footer: function(tooltipItems) {
+                            const sentence = sentenceMetrics[sentenceMetrics.length - 1 - tooltipItems[0].dataIndex];
+                            if (sentence && sentence.text) {
+                                const text = sentence.text;
+                                return 'Text: ' + (text.length > 100 ? text.substring(0, 97) + '...' : text);
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Sentences (Latest First)' } },
+                yLeft: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: 'WPM / Corrections' },
+                    beginAtZero: true,
+                },
+                yRight: {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Character Count' },
+                    beginAtZero: true,
+                    grid: { drawOnChartArea: false },
+                }
+            }
+        }
+    });
+}
+
+
+function closeSession(event, sessionId) {
+    event.stopPropagation(); 
+    const sessionDiv = event.target.closest('.session-item');
+    const showAllBtn = document.getElementById('showAllSessionsBtn');
+    
+    // Show all sessions again
+    showAllSessions();
+}
+
+async function displaySessionWithApps(sessionId, sessionNumber) {
+    try {
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            console.error('Session not found');
+            return;
+        }
+        
+        // Update dashboard header with session number
+        const headerTitle = document.querySelector('.header h1');
+        const startTime = new Date(sessionData.startTime);
+        const endTime = sessionData.endTime ? new Date(sessionData.endTime) : null;
+        
+        headerTitle.innerHTML = `
+            <div>📋 Session #${sessionNumber || sessionData.sessionNumber || 'Unknown'}</div>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">
+                🕐 ${startTime.toLocaleString()} ${endTime ? `→ ${endTime.toLocaleString()}` : '(Still Active)'} | 
+                ⏱️ ${formatDuration(sessionData.duration)} | 
+                📊 ${sessionData.totalActivities} activities | 
+                📱 ${Object.keys(sessionData.apps || {}).length} apps
+            </div>
+        `;
+        
+        // Display apps breakdown for this session
+        displaySessionApps(sessionData, sessionNumber);
+        
+        // Update global tracking data with session data
+        if (!window.originalTrackingData) {
+            window.originalTrackingData = [...allTrackingData];
+        }
+        
+        trackingData = sessionData.activities;
+        allTrackingData = sessionData.activities;
+        
+        updateDashboard();
+        addBackToAllSessionsButton();
+        
+    } catch (error) {
+        console.error('Error displaying session:', error);
+    }
+}
+
+
+function displaySessionApps(sessionData, sessionNumber) {
+    const appsContainer = document.getElementById('session-apps-container') || createAppsContainer();
+    
+    // CORRECTED: The container header no longer contains the faulty button.
+    appsContainer.innerHTML = `
+        <div style="display: flex; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="color: #2c3e50; font-size: 18px; margin: 0; flex-grow: 1;">
+                📱 Applications & Windows Used in Session #${sessionNumber || sessionData.sessionNumber || 'Unknown'}
+            </h3>
+            <button id="showAllAppsBtn" class="nav-btn back-to-apps" style="display: none;"
+                    onclick="showAllAppItems(true)">
+                ← Show All Apps
+            </button>
+        </div>
+    `;
+    
+    const sortedApps = groupActivitiesByAppAndWindow(sessionData.activities);
+
+    if (sortedApps.length === 0) {
+        appsContainer.innerHTML += '<div class="no-apps">No application data available for this session.</div>';
+        return;
+    }
+    
+    sortedApps.forEach((app, index) => {
+        const appDiv = document.createElement('div');
+        appDiv.className = 'app-item';
+        
+        const appDuration = new Date(app.endTime) - new Date(app.startTime);
+        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+
+        const counts = calculateWordCounts(app.activities);
+        const { typedWords, pastedWords, totalWords } = counts;
+        let indicatorWidgetHtml = '';
+
+        if (totalWords > 0) {
+            const typedPercent = (typedWords / totalWords) * 100;
+            const pastedPercent = 100 - typedPercent;
+            indicatorWidgetHtml = `
+                <div class="word-indicator-widget">
+                    <div class="word-indicator-bar">
+                        <span class="word-indicator-typed" style="width: ${typedPercent}%;"></span>
+                        <span class="word-indicator-pasted" style="width: ${pastedPercent}%;"></span>
+                    </div>
+                    <span class="word-indicator-text">(${typedWords}T / ${pastedWords}P)</span>
+                </div>
+            `;
+        }
+        
+        // This is the correct place for the print button for each app.
+        appDiv.innerHTML = `
+            <div class="app-header">
+                <div class="app-name">${rankIcon} 🪟 ${app.title}</div>
+                <div class="app-stats">
+                    ${indicatorWidgetHtml}
+                    <span class="app-activities">📊 ${app.totalActivities} activities</span>
+                    <span class="app-duration">⏱️ ${formatDuration(appDuration)}</span>
+                </div>
+            </div>
+            <div class="app-details">
+                <div><strong>📱 App:</strong> ${app.name}</div>
+                <div>🕐 First seen: ${new Date(app.startTime).toLocaleTimeString()}</div>
+                <div>🏁 Last seen: ${new Date(app.endTime).toLocaleTimeString()}</div>
+                <!-- CORRECTLY PLACED PRINT BUTTON -->
+                <button class="print-app-btn"
+                        onclick="printCurrentDashboardView(event)"
+                        title="Print PDF report for this window's content">
+                    🖨️ Print Report
+                </button>
+            </div>
+        `;
+        const printBtn = appDiv.querySelector('.print-app-btn');
+
+        
+
+appDiv.addEventListener('click', (e) => {
+             if (appDiv.classList.contains('expanded-app')) {
+                showAllAppItems(true);
+            } 
+            else {
+                const allAppItems = document.querySelectorAll('#session-apps-container .app-item');
+                let foundClickedApp = false;
+
+                allAppItems.forEach(item => {
+                    item.classList.remove('expanded-app', 'collapsed');
+                    if (foundClickedApp) item.classList.add('collapsed');
+
+                    if (foundClickedApp) {
+                        item.classList.add('collapsed');
+                    }
+                    if (item === appDiv) {
+                        item.classList.add('expanded-app');
+                        foundClickedApp = true;
+                    }
+                });
+                
+                document.getElementById('showAllAppsBtn').classList.add('visible');
+                filterByAppAndTitle(sessionData.sessionID, app.name, app.title, sessionNumber);
+            }
+        });
+        
+        appsContainer.appendChild(appDiv);
+    });
+}
+
+function generatePrintableReport(appName, appTitle, activities, sessionData) {
+    // Get sentence metrics for analysis
+    const sentenceMetrics = getSentenceMetrics(activities);
+    const { typedWords, pastedWords, totalWords } = calculateWordCounts(activities);
+    const duration = activities.length > 0 ? new Date(activities[activities.length - 1].timestamp) - new Date(activities[0].timestamp) : 0;
+    let fullText = '';
+    sentenceMetrics.reverse().forEach(sentence => {
+        fullText += sentence.text + ' ';
+    });
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Report for ${appName} - ${appTitle}</title>
+            <style>
+                body { font-family: sans-serif; margin: 20px; }
+                h1, h2, h3 { color: #333; }
+                .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+                .summary-item { background-color: #f4f4f4; padding: 10px; border-radius: 5px; }
+                .summary-item strong { display: block; margin-bottom: 5px; color: #555; }
+                .content { white-space: pre-wrap; word-wrap: break-word; background-color: #fdfdfd; border: 1px solid #eee; padding: 15px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Activity Report</h1>
+            <h2>${appName} - ${appTitle}</h2>
+            <p><strong>Session Start:</strong> ${new Date(sessionData.startTime).toLocaleString()}</p>
+
+            <h3>Summary</h3>
+            <div class="summary-grid">
+                <div class="summary-item"><strong>Total Activities:</strong> ${activities.length}</div>
+                <div class="summary-item"><strong>Time Spent in Window:</strong> ${formatDuration(duration)}</div>
+                <div class="summary-item"><strong>Typed Words:</strong> ${typedWords}</div>
+                <div class="summary-item"><strong>Pasted Words:</strong> ${pastedWords}</div>
+            </div>
+
+            <h3>Content</h3>
+            <div class="content">
+                ${fullText.trim()}
+            </div>
+        </body>
+        </html>
+    `;
+
+
+}
+
+
+async function showAllAppItems(restoreDashboard) {
+    // Show all app items again
+    const allAppItems = document.querySelectorAll('#session-apps-container .app-item');
+    allAppItems.forEach(item => {
+        item.classList.remove('collapsed', 'expanded-app');
+    });
+
+    // Hide the "Show All Apps" button
+    const showAllBtn = document.getElementById('showAllAppsBtn');
+    if (showAllBtn) {
+        showAllBtn.classList.remove('visible');
+    }
+
+    // If requested, reset the main dashboard to the full session view
+    if (restoreDashboard) {
+        const expandedSession = document.querySelector('.session-item.expanded');
+        if (expandedSession) {
+            const sessionId = expandedSession.dataset.sessionId;
+            const sessionNumber = expandedSession.querySelector('strong').textContent.replace('Session #', '').trim();
+            
+            // This reloads the full session data and updates all charts
+            await displaySessionWithApps(sessionId, sessionNumber);
+        }
+    }
+}
+
+
+function filterByAppAndTitle(sessionID, appName, windowTitle, sessionNumber) {
+    // 1. Filter the master data source
+    const filteredActivities = allTrackingData.filter(activity => 
+        activity.appName === appName && activity.windowTitle === windowTitle
+    );
+
+    // 2. Set the global 'trackingData' to this new filtered list
+    trackingData = filteredActivities;
+    
+    // 3. Refresh the dashboard with the new, filtered data
+    updateDashboard(); // This will now automatically call the new chart functions
+    renderSummaryQRCode(filteredActivities, appName, windowTitle);
+
+    // 4. Show the per-sentence summary chart
+    const sentenceChartContainer = document.getElementById('per-sentence-chart-container');
+    if (sentenceChartContainer) {
+        sentenceChartContainer.style.display = 'block';
+        renderPerSentenceSummaryChart(filteredActivities);
+    }
+
+    // 5. Update the header
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.innerHTML = `
+        <div>🪟 ${windowTitle}</div>
+        <div style="font-size: 14px; color: #666; margin-top: 5px;">
+            📱 In ${appName} | 📊 Activities: ${filteredActivities.length}
+        </div>
+    `;
+}
+
+
+
+function groupActivitiesByAppAndWindow(activities) {
+    const appGroups = {};
+    if (!activities) return [];
+
+    activities.forEach(activity => {
+        const appName = activity.appName || 'Unknown';
+        // Use a clear default if title is missing, to avoid 'undefined'
+        const windowTitle = activity.windowTitle || 'No Title Provided';
+        
+        // A unique key for each app/window combination
+        const groupKey = `${appName} - ${windowTitle}`;
+
+        if (!appGroups[groupKey]) {
+            appGroups[groupKey] = {
+                name: appName,
+                title: windowTitle,
+                activities: [],
+                totalActivities: 0,
+                // Set initial times
+                startTime: activity.timestamp,
+                endTime: activity.timestamp
+            };
+        }
+
+        appGroups[groupKey].activities.push(activity);
+        appGroups[groupKey].totalActivities++;
+        // Always update the end time to get an accurate duration for the group
+        appGroups[groupKey].endTime = activity.timestamp;
+    });
+
+    // Return as a sorted array so the most active windows are first
+    return Object.values(appGroups).sort((a, b) => b.totalActivities - a.totalActivities);
+}
+
+function createAppsContainer() {
+    const container = document.createElement('div');
+    container.id = 'session-apps-container';
+    container.className = 'session-apps-container';
+    container.style.cssText = `
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    `;
+    
+    const dashboard = document.querySelector('.dashboard');
+    const statsGrid = document.querySelector('.stats-grid');
+    dashboard.insertBefore(container, statsGrid);
+    
+    return container;
+}
+function filterByApp(sessionID, appName, sessionNumber) {
+    const sessionApps = allTrackingData.filter(activity => 
+        activity.sessionID === sessionID && activity.appName === appName
+    );
+    
+    trackingData = sessionApps;
+    updateDashboard();
+    
+    // Update header with session number
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.innerHTML = `
+        <div>📱 ${appName} in Session #${sessionNumber}</div>
+        <div style="font-size: 14px; color: #666; margin-top: 5px;">
+            📋 Session ID: ${sessionID} | 📊 Activities: ${sessionApps.length}
+        </div>
+    `;
+}
+
+
+
+async function displaySession(sessionId) {
+    try {
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            console.error('Session not found');
+            return;
+        }
+        
+        // Store original data for restoration
+        if (!window.originalTrackingData) {
+            window.originalTrackingData = [...allTrackingData];
+        }
+        
+        // Update global tracking data with session data
+        trackingData = sessionData.activities;
+        allTrackingData = sessionData.activities;
+        
+        // Update the entire dashboard with session data
+        updateDashboard();
+        
+        // Update header to show session info
+        const headerTitle = document.querySelector('.header h1');
+        headerTitle.textContent = `Session: ${new Date(sessionData.startTime).toLocaleString()}`;
+        
+        // Add back button
+        addBackToAllSessionsButton();
+        
+    } catch (error) {
+        console.error('Error displaying session:', error);
+    }
+}
+        
+function addBackToAllSessionsButton() {
+    const existingBtn = document.getElementById('backToAllBtn');
+    if (existingBtn) existingBtn.remove();
+    
+    const backBtn = document.createElement('button');
+    backBtn.id = 'backToAllBtn';
+    backBtn.className = 'btn btn-primary';
+    backBtn.textContent = 'Back to All Sessions';
+    backBtn.onclick = () => {
+        if (window.originalTrackingData) {
+            allTrackingData = window.originalTrackingData;
+            trackingData = window.originalTrackingData;
+            delete window.originalTrackingData;
+        }
+        updateDashboard();
+        document.querySelector('.header h1').textContent = 'Activity Tracker Dashboard';
+        backBtn.remove();
+        
+        // Remove active state from session buttons
+        document.querySelectorAll('.session-btn.active').forEach(b => b.classList.remove('active'));
+    };
+    
+        // document.querySelector('.controls').appendChild(backBtn);
+}
+
+        let trackingData = [];        
+        let allTrackingData = [];
+        let sessionData = null;
+        let charts = {};
+        let currentFilter = 'all';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            allTrackingData = await ipcRenderer.invoke('get-tracking-data');
+
+            setupEventListeners();
+            debugSessions(); // Add this line
+
+        });
+          
+        ipcRenderer.on('session-stopped', (event, data) => {
+            allTrackingData = data;
+            updateDashboard();
+        });
+
+        function setupEventListeners() {
+    ipcRenderer.on('activity-update', (event, activity) => {
+        trackingData.push(activity);
+        updateDashboard();
+    });
+
+    // In dashboard.html <script>
+
+// In dashboard.html <script>
+
+
+    
+    ipcRenderer.on('generate-report', async (event, data) => {
+
+    const appGroups = groupActivitiesByAppAndWindow(data.activities);
+    
+    if (!appGroups || appGroups.length === 0) {
+        console.error("Cannot print report: Session contains no identifiable app activity.");
+        return; // Stop if there's nothing to show
+    }
+    
+    // The most significant part is the one with the most activities
+    const mostSignificantApp = appGroups[0];
+
+    // --- Step 2: Set the global data AS IF the user had clicked on that app ---
+    
+    // 'trackingData' becomes the FOCUSED data for the charts.
+    trackingData = mostSignificantApp.activities;
+    
+    // 'allTrackingData' remains the FULL dataset of the session.
+    // This makes the `isFilteredView` check in `updateDashboard` TRUE.
+    allTrackingData = data.activities;
+    
+    // Keep sessionData for other info
+    sessionData = data;
+
+    // --- Step 3: Render the full dashboard with this filtered context ---
+    
+    // Now, updateDashboard() will see a filtered view and render ALL charts correctly.
+    updateDashboard(true); // The 'true' flag ensures it renders even if containers are hidden.
+    renderSummaryQRCode(mostSignificantApp.activities, mostSignificantApp.name, mostSignificantApp.title);
+
+    // Also render the app list for the report header.
+    displaySessionApps(data, data.sessionNumber);
+
+    // --- Step 4: Proceed with the "Canvas Cloning" method for printing ---
+
+    const printOutput = document.getElementById('print-output');
+    printOutput.innerHTML = '';
+
+    // Give a moment for the now-correctly-rendered charts to draw.
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Find and clone all the elements you want to print.
+    const elementsToClone = document.querySelectorAll(
+        '#session-apps-container, .text-analysis, .typing-rhythm, .chart-container'
+    );
+
+    elementsToClone.forEach(element => {
+        if (element.style.display !== 'none') {
+            const printItem = document.createElement('div');
+            printItem.className = 'print-item';
+
+            const titleElement = element.querySelector('h3');
+            if (titleElement) {
+                const title = document.createElement('h3');
+                title.textContent = titleElement.textContent;
+                printItem.appendChild(title);
+            }
+
+            const canvas = element.querySelector('canvas');
+            if (canvas && canvas.toDataURL() !== 'data:,') {
+                const image = new Image();
+                image.src = canvas.toDataURL('image/png');
+                printItem.appendChild(image);
+            } else if (!canvas) {
+                const content = element.cloneNode(true);
+                const clonedTitle = content.querySelector('h3');
+                if (clonedTitle) clonedTitle.remove();
+                printItem.appendChild(content);
+            }
+            printOutput.appendChild(printItem);
+        }
+    });
+
+    // --- Step 5: Signal that the print-ready images are prepared ---
+    ipcRenderer.send('report-ready-for-pdf');
+});
+
+
+    
+    // NEW: Listener for the App Summary Report from main.js
+    ipcRenderer.on('generate-app-summary-report', (event, appSummaryData) => {
+        hideAllViews(); // Hide normal dashboard view
+        const reportContainer = document.getElementById('app-summary-report');
+        reportContainer.innerHTML = ''; // Clear previous content
+        reportContainer.classList.add('printing'); // Mark this section for printing
+        reportContainer.style.display = 'block'; // Make it visible
+
+        const title = document.createElement('h2');
+        title.textContent = 'Top Application Usage Summary';
+        title.style.marginBottom = '20px';
+        reportContainer.appendChild(title);
+
+        if (appSummaryData.length === 0) {
+            reportContainer.innerHTML += '<p>No application data found.</p>';
+        } else {
+            appSummaryData.forEach((app, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'app-summary-item';
+                itemDiv.innerHTML = `
+                    <div class="app-summary-rank">#${index + 1}</div>
+                    <div class="app-summary-details">
+                        <h3 class="app-summary-name">${app.name}</h3>
+                        <div class="app-summary-stats">
+                            <span>📊 <strong>Activities:</strong> ${app.totalActivities.toLocaleString()}</span>
+                            <span>⏱️ <strong>Time Spent:</strong> ${formatDuration(app.totalTimeSpent)}</span>
+                            <span>📋 <strong>Sessions:</strong> ${app.sessionCount}</span>
+                        </div>
+                    </div>
+                `;
+                reportContainer.appendChild(itemDiv);
+            });
+        }
+        
+        // Signal back to main.js that the HTML is ready
+        ipcRenderer.send('report-ready-for-pdf');
+    });
+
+    // NEW: Listener for the final "print" command from main.js
+    ipcRenderer.on('trigger-pdf-generation', () => {
+        document.getElementById('print-date').textContent = new Date().toLocaleString();
+        setTimeout(() => window.print(), 500); // Trigger the print dialog
+    });
+}
+
+function hideAllViews() {
+
+}
+
+        
+
+        async function loadTrackingData() {
+            try {
+                trackingData = await ipcRenderer.invoke('get-tracking-data');
+                updateDashboard();
+            } catch (error) {
+                console.error('Error loading tracking data:', error);
+            }
+        }
+
+
+       
+        // In dashboard.html <script> section
+
+// REPLACE your entire updateDashboard function with this one.
+function updateDashboard(isPrinting = false) {
+    // Render the charts that always show
+    updateActivityChart();
+    updateAppChart();
+    updateKeystrokeChart();
+    updateMouseChart();
+    renderOriginChart();
+    const sentenceContainerIds = [
+        '#per-sentence-chart-container', '#sentence-duration-container', '#sentence-wpm-container',
+        '#sentence-chars-container', '#sentence-corrections-container', '#combined-sentence-container'
+    ];
+    const isFilteredView = trackingData.length < allTrackingData.length;
+
+    // The key logic: render if filtered OR if we are explicitly printing.
+    if ((isFilteredView || isPrinting) && trackingData.length > 0) {
+        // *** CRITICAL FIX: Make containers visible BEFORE drawing charts. ***
+        sentenceContainerIds.forEach(id => {
+            const container = document.querySelector(id);
+            if (container) {
+                // Restore its original display property, don't just use 'block'.
+                const displayStyle = container.classList.contains('charts-grid') ? 'grid' : 'block';
+                container.style.display = displayStyle;
+            }
+        });
+
+        // Now that containers are visible, render the charts.
+        const sentenceMetrics = getSentenceMetrics(trackingData);
+        if (sentenceMetrics && sentenceMetrics.length > 0) {
+            renderPerSentenceSummaryChart(trackingData);
+            renderAllSentenceCharts(sentenceMetrics);
+        }
+    } else {
+        // This hides the sentence charts in the normal, non-filtered view.
+        sentenceContainerIds.forEach(id => {
+            const container = document.querySelector(id);
+            if (container) container.style.display = 'none';
+        });
+    }
+
+    // Update other UI elements
+    updateStats();
+    updateActivityLog();
+    updateTextAnalysis();
+    updateTypingRhythm();
+}
+
+
+
+function renderOriginChart() {
+    const chartId = 'originChart';
+    if (charts[chartId]) {
+        charts[chartId].destroy();
+    }
+
+    const ctx = document.getElementById(chartId).getContext('2d');
+
+    // Use the getSentenceMetrics function to get accurately processed text blocks.
+    const sentences = getSentenceMetrics(trackingData);
+
+    let typedChars = 0;
+    let pastedChars = 0;
+
+    sentences.forEach(sentence => {
+        if (sentence.isPaste) {
+            pastedChars += sentence.text.length;
+        } else {
+            typedChars += sentence.text.length;
+        }
+    });
+
+    const totalChars = typedChars + pastedChars;
+    const humanPercentage = totalChars > 0 ? Math.round((typedChars / totalChars) * 100) : 0;
+
+    charts[chartId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Human', 'AI '],
+            datasets: [{
+                data: [typedChars, pastedChars],
+                backgroundColor: [
+                    'rgba(52, 152, 219, 0.8)', //
+                    'rgba(231, 76, 60, 0.8)'   // 
+                ],
+                borderColor: '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                // This plugin draws the percentage text in the center of the donut.
+                title: {
+                    display: true,
+                    text: `${humanPercentage}% `,
+                    position: 'top', // Changed from center to top to avoid clash
+                    font: {
+                        size: 24,
+                        weight: 'bold'
+                    },
+                    color: '#2c3e50',
+                    padding: {
+                       top: 10,
+                       bottom: 30
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+        function renderCombinedSentenceChart(sentences, labels, wpmData, correctionsData, pasteData) {
+    const chartId = 'combinedSentenceChart';
+    const container = document.getElementById('combined-sentence-container');
+    if (!container) return;
+
+    if (charts[chartId]) charts[chartId].destroy();
+
+    if (sentences.length === 0) {
+        container.innerHTML = `<h3 class="chart-title">Combined Sentence Performance</h3><div class="no-data">No sentence data to display.</div>`;
+        return;
+    }
+    
+    container.innerHTML = `<h3 class="chart-title">Combined Sentence Performance</h3><canvas id="${chartId}" class="chart-canvas"></canvas>`;
+    const ctx = document.getElementById(chartId).getContext('2d');
+
+    charts[chartId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Typing Speed (WPM)',
+                    data: wpmData,
+                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                    yAxisID: 'yLeft',
+                },
+                {
+                    label: 'Corrections',
+                    data: correctionsData,
+                    backgroundColor: 'rgba(0, 176, 0, 0.7)',
+                    yAxisID: 'yRight',
+                },
+                {
+                    label: 'Pasted Chars',
+                    data: pasteData,
+                    backgroundColor: 'rgba(241, 0, 15, 0.7)',
+                    yAxisID: 'yRight',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Typing Speed vs. Corrections & Pastes (Latest First)' },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        footer: function(tooltipItems) {
+                            const sentenceIndex = tooltipItems[0].dataIndex;
+                            const sentence = sentences[sentenceIndex];
+                            if (sentence && sentence.text) {
+                                const text = sentence.text;
+                                return 'Text: ' + (text.length > 100 ? text.substring(0, 97) + '...' : text);
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true, title: { display: true, text: 'Sentences' } },
+                yLeft: {
+                    type: 'linear',
+                    position: 'left',
+                    title: { display: true, text: 'Words Per Minute (WPM)' },
+                    beginAtZero: true,
+                },
+                yRight: {
+                    type: 'linear',
+                    position: 'right',
+                    title: { display: true, text: 'Character / Correction Count' },
+                    beginAtZero: true,
+                    stacked: true,
+                    grid: { drawOnChartArea: false },
+                }
+            }
+        }
+    });
+}
+
+
+        function renderSentenceBarChart(chartId, containerId, title, labels, data, color, tooltipLabel) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (charts[chartId]) charts[chartId].destroy();
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `<h3 class="chart-title">${title}</h3><div class="no-data">No sentence data to display.</div>`;
+        return;
+    }
+    
+    container.innerHTML = `<h3 class="chart-title">${title}</h3><canvas id="${chartId}" class="chart-canvas"></canvas>`;
+    const ctx = document.getElementById(chartId).getContext('2d');
+
+    charts[chartId] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: tooltipLabel,
+                data: data,
+                backgroundColor: color,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+
+
+
+
+
+
+
+function renderAllSentenceCharts(sentences) {
+    // Ensure all chart containers are visible before drawing
+    const containerIds = [
+        '#sentence-duration-container', '#sentence-wpm-container',
+        '#sentence-chars-container', '#sentence-corrections-container',
+        '#combined-sentence-container'
+    ];
+    containerIds.forEach(id => {
+        const container = document.querySelector(id);
+        if (container) container.style.display = 'block';
+    });
+    
+    // Prepare all the data arrays needed for the charts one time
+    const labels = sentences.map((s, i) => `S${sentences.length - i}`); // Labels: S1, S2...
+    const wpmData = sentences.map(s => s.isPaste ? 0 : s.wpm);
+    const durationData = sentences.map(s => s.duration);
+    const charData = sentences.map(s => s.isPaste ? 0 : s.typedChars);
+    const correctionsData = sentences.map(s => s.backspaces + s.deletes);
+    const pasteData = sentences.map(s => s.isPaste ? s.typedChars : 0);
+
+    // --- Render each of the 5 charts ---
+
+    // Chart 1: Sentence Duration (Focus Time)
+    renderSentenceBarChart('sentenceDurationChart', 'sentence-duration-container', 'Sentence Duration (Focus Time in ms)', labels, durationData, 'rgba(46, 204, 113, 0.7)', 'Milliseconds');
+    
+    // Chart 2: Sentence Typing Speed (WPM)
+    renderSentenceBarChart('sentenceWpmChart', 'sentence-wpm-container', 'Sentence Typing Speed (WPM)', labels, wpmData, 'rgba(52, 152, 219, 0.7)', 'WPM');
+    
+    // Chart 3: Sentence Typed Characters
+    renderSentenceBarChart('sentenceCharsChart', 'sentence-chars-container', 'Sentence Typed Characters', labels, charData, 'rgba(155, 89, 182, 0.7)', 'Characters');
+    
+    // Chart 4: Sentence Corrections
+    renderSentenceBarChart('sentenceCorrectionsChart', 'sentence-corrections-container', 'Sentence Corrections', labels, correctionsData, 'rgba(231, 76, 60, 0.7)', 'Corrections');
+    
+    // Chart 5: The special combined performance chart
+    renderCombinedSentenceChart(sentences, labels, wpmData, correctionsData, pasteData);
+}
+
+
+
+
+
+        /**
+ * [NEW FUNCTION]
+ * Processes raw activity data and aggregates it by day.
+ * @param {Array} activities - The full list of tracking activities.
+ * @returns {Object} - An object where keys are dates (YYYY-MM-DD) and values are the calculated stats for that day.
+ */
+
+ function renderCombinedDailyChart(dailyData) {
+    const containerId = 'combined-summary-container';
+    const chartId = 'combinedDailyChart';
+    const chartKey = 'combinedDaily';
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Container not found for chart: ${containerId}`);
+        return;
+    }
+
+    // Destroy previous chart instance if it exists
+    if (charts[chartKey]) {
+        charts[chartKey].destroy();
+    }
+
+    const labels = Object.keys(dailyData);
+
+    // If there's no data, show a message and clear the canvas
+    if (!labels || labels.length === 0) {
+        container.innerHTML = `<h3 class="chart-title">Combined Daily Summary</h3><div class="no-data">No daily data available to display.</div>`;
+        return;
+    }
+    
+    // Ensure the canvas is present
+    container.innerHTML = `<h3 class="chart-title">Combined Daily Summary</h3><canvas id="${chartId}" class="chart-canvas"></canvas>`;
+    const ctx = document.getElementById(chartId).getContext('2d');
+
+    charts[chartKey] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Focus Time (min)',
+                data: Object.values(dailyData).map(d => d.focusTimeMinutes),
+                borderColor: 'rgba(46, 204, 113, 0.8)',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                yAxisID: 'yTime',
+                tension: 0.3,
+                fill: true,
+            }, {
+                label: 'Typing Speed (WPM)',
+                data: Object.values(dailyData).map(d => d.wpm),
+                borderColor: 'rgba(52, 152, 219, 0.8)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                yAxisID: 'yWPM',
+                tension: 0.3,
+                fill: true,
+            }, {
+                label: 'Typed Chars',
+                data: Object.values(dailyData).map(d => d.typedChars),
+                borderColor: 'rgba(155, 89, 182, 0.8)',
+                backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                yAxisID: 'yCount',
+                tension: 0.3,
+                hidden: true, // Initially hidden to avoid clutter
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Combined Daily Performance Metrics'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Date' }
+                },
+                yTime: {
+                    type: 'linear',
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Focus Time (min)',
+                        color: 'rgba(46, 204, 113, 1)'
+                    },
+                    grid: {
+                        drawOnChartArea: false, // only draw grid for first Y axis
+                    },
+                },
+                yWPM: {
+                    type: 'linear',
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Avg. WPM',
+                        color: 'rgba(52, 152, 219, 1)'
+                    },
+                },
+                yCount: {
+                     type: 'linear',
+                     position: 'right',
+                     display: false, // Hidden but available for toggling
+                     title: {
+                         display: true,
+                         text: 'Count (Chars)'
+                     }
+                }
+            }
+        }
+    });
+}
+
+function processDailyData(activities) {
+    const dailyMetrics = {};
+    const FOCUS_GAP_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    // Ensure activities are sorted by timestamp for correct calculations
+    const sortedActivities = activities.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    sortedActivities.forEach((activity, index) => {
+        const date = new Date(activity.timestamp);
+        const dayKey = date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+        if (!dailyMetrics[dayKey]) {
+            dailyMetrics[dayKey] = {
+                typedChars: 0,
+                corrections: 0,
+                totalTypingDuration: 0, // Duration only when typing
+                focusTime: 0, // Total time with activity
+                firstActivity: date,
+                lastActivity: date,
+            };
+        }
+
+        const metrics = dailyMetrics[dayKey];
+        metrics.lastActivity = date;
+        
+        // Calculate time gap from previous activity for focus time
+        if (index > 0) {
+            const prevTimestamp = new Date(sortedActivities[index - 1].timestamp);
+            const timeDiff = date - prevTimestamp;
+            // Only add time if the gap is less than the threshold
+            if (timeDiff < FOCUS_GAP_THRESHOLD) {
+                metrics.focusTime += timeDiff;
+                // Only add to typing duration if it was a keystroke
+                 if (activity.type === 'keystroke') {
+                    metrics.totalTypingDuration += timeDiff;
+                 }
+            }
+        }
+
+        if (activity.type === 'keystroke') {
+            if (activity.key && activity.key.length === 1) {
+                metrics.typedChars++;
+            } else if (activity.key === 'BACKSPACE' || activity.key === 'DELETE') {
+                metrics.corrections++;
+            }
+        }
+    });
+    
+    // Post-process to calculate WPM and convert focus time to minutes
+    for (const day in dailyMetrics) {
+        const metrics = dailyMetrics[day];
+        const typingMinutes = metrics.totalTypingDuration / 60000;
+        
+        // Simple word estimation: average 5 chars per word
+        const words = metrics.typedChars / 5; 
+        metrics.wpm = typingMinutes > 0 ? Math.round(words / typingMinutes) : 0;
+        
+        console.log('metrics :>> ', metrics);
+        console.log('metrics.wpm :>> ', metrics.wpm);
+        metrics.focusTimeMinutes = Math.round(metrics.focusTime / 60000);
+    }
+
+    return dailyMetrics;
+}
+
+/**
+ * [NEW GENERIC FUNCTION]
+ * Renders a bar chart, and shows a message if there's no data.
+ * @param {Object} config - Configuration for the chart.
+ */
+function renderDailyBarChart(config) {
+    const { chartId, chartKey, containerId, title, labels, data, color, tooltipLabel } = config;
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Container not found for chart: ${containerId}`);
+        return;
+    }
+
+    // Destroy previous chart instance if it exists
+    if (charts[chartKey]) {
+        charts[chartKey].destroy();
+    }
+
+    // If there's no data, show a message and clear the canvas
+    if (!data || data.length === 0 || data.every(item => item === 0)) {
+        container.innerHTML = `<h3 class="chart-title">${title}</h3><div class="no-data">No data available for this period.</div>`;
+        return;
+    } 
+    
+    // If there is data, ensure the canvas exists
+    container.innerHTML = `<h3 class="chart-title">${title}</h3><canvas id="${chartId}" class="chart-canvas"></canvas>`;
+    const ctx = document.getElementById(chartId).getContext('2d');
+
+    charts[chartKey] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: tooltipLabel,
+                data: data,
+                backgroundColor: color,
+                borderColor: color.replace('0.7', '1'),
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#e9e9e9' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+
+        function renderDrillDownSessionChart() {
+            ChartManager.destroyChart('drillDownChart');
+
+            const ctx = ChartManager.cleanCanvas('drillDownChart');
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
+
+    const sessionGroups = groupDataBySession();
+    const sessionData = [];
+    
+    if (!sessionGroups || Object.keys(sessionGroups).length === 0) {
+        console.log('No session data available');
+        return;
+    }
+
+    // Initialize with session-level view  
+    let sessionIndex = 1;
+
+    // FIXED: Remove duplicate loop - you had the same loop twice
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+    if (sessionData.length === 0) {
+        console.log('No valid sessions found');
+        return;
+    }
+
+    // Store chart state before creating chart
+    window.chartDrillState = {
+        level: 'session',
+        data: sessionData,
+        sessionGroups: sessionGroups
+    };
+
+    // Create chart with improved error handling
+    try {
+        charts.drillDownChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sessionData.map(s => s.label),
+                datasets: [{
+                    data: sessionData.map(s => s.value),
+                    backgroundColor: sessionData.map(s => s.color),
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 5,
+                    hoverOffset: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '📊 Sessions Overview - Click to Drill Down',
+                        font: { size: 18, weight: 'bold' },
+                        color: '#2c3e50'
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 14 }  
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 10,
+                        padding: 15,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                if (!tooltipItems || tooltipItems.length === 0) return '';
+                                const item = tooltipItems[0];
+                                const session = sessionData[item.dataIndex];
+                                return session ? `🗂️ ${session.label}` : 'Unknown Session';
+                            },
+                            label: function(context) {
+                                if (!context || typeof context.dataIndex === 'undefined') return '';
+                                const session = sessionData[context.dataIndex];
+                                if (!session) return '';
+                                
+                                return [
+                                    `📊 Activities: ${session.value}`,
+                                    `⏱️ Duration: ${session.duration}`,
+                                    `🖱️ Click to view apps breakdown`
+                                ];
+                            }
+                        }
+                    }
+                },
+                
+                // Improved onClick handler with better error handling
+                onClick: function(event, activeElements) {
+                    // Prevent default event handling that might cause conflicts
+                    if (event && event.native) {
+                        event.native.preventDefault();
+                    }
+                    
+                    try {
+                        if (activeElements && activeElements.length > 0) {
+                            const elementIndex = activeElements[0].index;
+                            
+                            // Validate index bounds
+                            if (elementIndex >= 0 && elementIndex < sessionData.length) {
+                                const selectedSession = sessionData[elementIndex];
+                                
+                                if (selectedSession && selectedSession.sessionID) {
+                                    // Add a small delay to prevent event conflicts
+                                    setTimeout(() => {
+                                        drillDownToApps(selectedSession);
+                                    }, 100);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Chart click error:', error);
+                    }
+                },
+                // Improved onHover handler
+                onHover: function(event, activeElements) {
+                    try {
+                        const canvas = event.native?.target || ctx.canvas;
+                        if (canvas) {
+                            canvas.style.cursor = 
+                                (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                        }
+                    } catch (error) {
+                        console.error('Chart hover error:', error);
+                    }
+                }
+            }
+        });
+
+        // Additional safety check
+        if (!charts.drillDownChart) {
+            console.error('Failed to create chart instance');
+            return;
+        }
+
+    } catch (error) {
+        console.error('Error creating chart:', error);
+        // Clean up on error
+        if (charts.drillDownChart) {
+            charts.drillDownChart.destroy();
+            charts.drillDownChart = null;
+        }
+    }
+}
+        
+   
+        
+
+
+
+
+function lightenDarkenColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+    }
+    var num = parseInt(col, 16);
+    var r = (num >> 16) + amt;
+    var g = (num >> 8 & 0x00FF) + amt;
+    var b = (num & 0x0000FF) + amt;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + (r << 16 | g << 8 | b).toString(16);
+}
+
+// Enhanced session analysis view
+function showSessionAnalysis(session) {
+    const sessionGroups = groupDataBySession();
+    const targetSession = sessionGroups[session.sessionID];
+    
+    // Create detailed analysis popup or section
+    createAnalysisModal({
+        type: 'session',
+        title: `📊 Session ${session.sessionIndex + 1} Analysis`,
+        data: targetSession,
+        session: session
+    });
+}
+
+
+
+// Create analysis modal/section
+function createAnalysisModal(config) {
+    // Remove existing modal
+    const existingModal = document.getElementById('analysisModal');
+    if (existingModal) existingModal.remove();
+    
+    // Create new modal
+    const modal = document.createElement('div');
+    modal.id = 'analysisModal';
+    modal.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: white; padding: 30px; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        max-width: 800px; max-height: 80vh; overflow-y: auto; z-index: 1000;
+        border: 3px solid ${config.session?.color || config.app?.color || '#4ECDC4'};
+    `;
+    
+    const activities = config.data.activities;
+    const startTime = new Date(activities[0]?.timestamp || config.data.startTime);
+    const endTime = new Date(activities[activities.length - 1]?.timestamp || Date.now());
+    const duration = Math.round((endTime - startTime) / 60000); // minutes
+    
+    modal.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #333; margin: 0;">${config.title}</h2>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; font-size: 16px;">✕</button>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #3498db;">${activities.length}</div>
+                <div style="color: #666;">Total Activities</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${duration}m</div>
+                <div style="color: #666;">Duration</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${startTime.toLocaleTimeString()}</div>
+                <div style="color: #666;">Started</div>
+            </div>
+        </div>
+        
+        <div style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            ${activities.slice(0, 50).map(activity => `
+                <div style="background: white; margin-bottom: 8px; padding: 10px; border-radius: 5px; border-left: 4px solid ${activity.type === 'paste' ? '#e74c3c' : '#27ae60'};">
+                    <strong>${activity.type === 'paste' ? '📋 Paste' : '⌨️ Type'}:</strong> 
+                    ${activity.type === 'paste' ? activity.text?.substring(0, 100) + '...' : activity.key || 'Key'}
+                    <br><small style="color: #666;">📱 ${activity.appName} - 🕐 ${new Date(activity.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `).join('')}
+        </div>
+        
+        <button onclick="filterAndDisplayReport('${config.session?.sessionID || config.app?.sessionID}', '${config.app?.appName || ''}')" 
+                style="background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin-top: 15px; width: 100%;">
+            📊 Show Full Dashboard for This ${config.type === 'session' ? 'Session' : 'App'}
+        </button>
+    `;
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;';
+    backdrop.onclick = () => { modal.remove(); backdrop.remove(); };
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+}
+
+
+
+function filterAndDisplayReport(sessionID, appName = '') {
+    // Close any open modals
+    const modal = document.getElementById('analysisModal');
+    if (modal) modal.remove();
+    
+    const sessionGroups = groupDataBySession();
+    const targetSession = sessionGroups[sessionID];
+    
+    if (!targetSession) {
+        console.error(`Session ${sessionID} not found`);
+        return;
+    }
+    
+    let filteredActivities = targetSession.activities;
+    
+    if (appName && appName !== 'undefined') {
+        filteredActivities = targetSession.activities.filter(activity => 
+            activity.appName === appName
+        );
+    }
+    
+    // Store original data
+    if (!window.originalTrackingData) {
+        window.originalTrackingData = [...trackingData];
+    }
+    
+    // Update tracking data
+    trackingData = filteredActivities;
+    
+    // Update dashboard
+    updateDashboard();
+    
+    // Update header with better styling
+    const headerInfo = document.querySelector('.header h1');
+    const sessionStartTime = new Date(targetSession.startTime).toLocaleString();
+    
+    if (appName && appName !== 'undefined') {
+        headerInfo.innerHTML = `📱 ${appName} Analysis<br><small style="font-size: 16px; color: #7f8c8d;">Session: ${sessionStartTime}</small>`;
+    } else {
+        headerInfo.innerHTML = `🗂️ Session Analysis<br><small style="font-size: 16px; color: #7f8c8d;">${sessionStartTime}</small>`;
+    }
+    
+    // Add enhanced return button
+    addEnhancedReturnButton();
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Enhanced return button
+function addEnhancedReturnButton() {
+    const existingButton = document.getElementById('showAllSessionsBtn');
+    if (existingButton) existingButton.remove();
+    
+    const button = document.createElement('button');
+    button.id = 'showAllSessionsBtn';
+    button.innerHTML = '🔙 Show All Sessions';
+    button.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white; border: none; padding: 12px 24px; border-radius: 25px;
+        cursor: pointer; margin-left: 15px; font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;
+    `;
+    
+    button.onmouseover = () => button.style.transform = 'translateY(-2px)';
+    button.onmouseout = () => button.style.transform = 'translateY(0)';
+    
+    button.onclick = () => {
+        if (window.originalTrackingData) {
+            trackingData = window.originalTrackingData;
+            delete window.originalTrackingData;
+        }
+        updateDashboard();
+        document.querySelector('.header h1').textContent = 'Activity Tracker Dashboard';
+        button.remove();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    
+    document.querySelector('.controls').appendChild(button);
+}
+
+
+
+function groupDataBySession() {
+    if (!allTrackingData || allTrackingData.length === 0) {
+        return {};
+    }
+    // console.log('allTrackingData :>> ', allTrackingData);
+    // console.log('Keystrokes only:', allTrackingData.filter(activity => activity.type === 'keystroke'));
+// 
+    const sessionGroups = {};
+    
+    allTrackingData.forEach(activity => {
+        const activitySessionID = activity.sessionID;
+        
+        if (!activitySessionID) return; 
+
+        if (!sessionGroups[activitySessionID]) {
+            sessionGroups[activitySessionID] = {
+                sessionID: activitySessionID,
+                activities: [],
+                startTime: activity.timestamp,
+                endTime: activity.timestamp,
+                apps: {} // This will now store groups based on windowTitle
+            };
+        }
+        
+        sessionGroups[activitySessionID].activities.push(activity);
+        
+        if (new Date(activity.timestamp) < new Date(sessionGroups[activitySessionID].startTime)) {
+            sessionGroups[activitySessionID].startTime = activity.timestamp;
+        }
+        if (new Date(activity.timestamp) > new Date(sessionGroups[activitySessionID].endTime)) {
+            sessionGroups[activitySessionID].endTime = activity.timestamp;
+        }
+        
+        // MODIFICATION: Group by windowTitle as a unique "app" context
+        const appName = activity.appName || 'Unknown';
+        const windowTitle = activity.windowTitle || 'Unknown';
+        // Create a unique key for each app-title combination
+        const appTitleKey = `${appName} - ${windowTitle}`; 
+
+        if (!sessionGroups[activitySessionID].apps[appTitleKey]) {
+            sessionGroups[activitySessionID].apps[appTitleKey] = {
+                name: appName,
+                title: windowTitle, // Store the title separately
+                activities: [],
+                totalActivities: 0
+            };
+        }
+        sessionGroups[activitySessionID].apps[appTitleKey].activities.push(activity);
+        sessionGroups[activitySessionID].apps[appTitleKey].totalActivities++;
+    });
+    
+    return sessionGroups;
+}
+
+
+async function lazyLoadSessionContent(sessionId) {
+    // Check if content is already loaded
+    if (window.loadedSessions && window.loadedSessions[sessionId]) {
+        return window.loadedSessions[sessionId];
+    }
+    
+    try {
+        // Load session data from backend
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            throw new Error('Session not found');
+        }
+        
+        // Cache the loaded session
+        if (!window.loadedSessions) window.loadedSessions = {};
+        window.loadedSessions[sessionId] = sessionData;
+        
+        return sessionData;
+    } catch (error) {
+        console.error('Error loading session:', error);
+        return null;
+    }
+}
+
+async function displaySession(sessionId) {
+    const contentElement = document.getElementById('session-content');
+    
+    // Show loading state
+    contentElement.innerHTML = '<div class="loading">Loading session data...</div>';
+    
+    try {
+        const sessionData = await lazyLoadSessionContent(sessionId);
+        
+        if (!sessionData) {
+            contentElement.innerHTML = '<div class="error">Error: Could not load session data.</div>';
+            return;
+        }
+        
+        // Clear previous content and update header
+        contentElement.innerHTML = '';
+        document.querySelector('#content-container h3').textContent = 
+            `Content for session started at ${new Date(sessionData.startTime).toLocaleString()}`;
+
+        // Render session content with better organization
+        renderSessionContent(sessionData, contentElement);
+        console.log("this is the session");
+
+    } catch (error) {
+        contentElement.innerHTML = '<div class="error">Error loading session data.</div>';
+        console.error('Session display error:', error);
+    }
+}
+
+function renderSessionContent(sessionData, container) {
+    let currentContext = null;
+    let textBuffer = '';
+    let contextGroup = document.createElement('div');
+    contextGroup.className = 'context-group';
+    console.log('sessionData :>> ', sessionData);
+    sessionData.activities.forEach((activity, index) => {
+        const activityContext = `${activity.appName} - ${activity.windowTitle}`;
+        
+        // If context changes, finalize current group and start new one
+        if (activityContext !== currentContext) {
+            if (textBuffer && currentContext) {
+                finalizeContextGroup(contextGroup, textBuffer, currentContext);
+                container.appendChild(contextGroup);
+            }
+            
+            // Start new context group
+            contextGroup = document.createElement('div');
+            contextGroup.className = 'context-group';
+            contextGroup.setAttribute('data-context', activityContext);
+            
+            // Add context header
+            const contextHeader = document.createElement('div');
+            contextHeader.className = 'context-header';
+            contextHeader.innerHTML = `
+                <strong>📱 ${activity.appName}</strong> - ${activity.windowTitle}
+                ${activity.url ? `<br><small>🔗 ${activity.url}</small>` : ''}
+            `;
+            contextGroup.appendChild(contextHeader);
+            
+            currentContext = activityContext;
+            textBuffer = '';
+        }
+        
+        // Process activity
+        if (activity.type === 'paste') {
+            // Finalize any existing text buffer
+            if (textBuffer) {
+                addTextSpan(contextGroup, textBuffer, 'typed');
+                textBuffer = '';
+            }
+            // Add pasted content
+            addTextSpan(contextGroup, activity.text, 'pasted');
+        } else if (activity.type === 'keystroke') {
+            const key = activity.key === 'SPACE' ? ' ' : 
+                       (activity.key && activity.key.length === 1 ? activity.key : '');
+            if (key) textBuffer += key;
+        }
+        
+        // Handle last activity
+        if (index === sessionData.activities.length - 1) {
+            if (textBuffer) addTextSpan(contextGroup, textBuffer, 'typed');
+            container.appendChild(contextGroup);
+        }
+    });
+}
+
+function addTextSpan(container, text, type) {
+    const span = document.createElement('span');
+    span.className = `sentence ${type}`;
+    span.textContent = text;
+    container.appendChild(span);
+}
+
+function addDateTimeFilters() {
+    const filtersSection = document.querySelector('.filters-section') || createFiltersSection();
+    
+    filtersSection.innerHTML = `
+        <h3>📅 Filters & Controls</h3>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label class="filter-label">Date Range</label>
+                <div class="date-range">
+                    <input type="date" id="startDate" class="date-input">
+                    <span>to</span>
+                    <input type="date" id="endDate" class="date-input">
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Application Filter</label>
+                <select id="appFilter" class="select-input">
+                    <option value="">All Applications</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Session Filter</label>
+                <select id="sessionFilter" class="select-input">
+                    <option value="">All Sessions</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Activity Type</label>
+                <select id="activityFilter" class="select-input">
+                    <option value="">All Activities</option>
+                    <option value="keystroke">Keystrokes Only</option>
+                    <option value="paste">Paste Events Only</option>
+                    <option value="mouse">Mouse Events Only</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            <button class="btn btn-success" onclick="exportFilteredData()">Export Filtered Data</button>
+        </div>
+    `;
+    
+    // Populate filter options
+    populateFilterOptions();
+    
+    // Add event listeners
+    setupFilterEventListeners();
+}
+
+function populateFilterOptions() {
+    // Get unique apps
+    const apps = [...new Set(allTrackingData.map(d => d.appName))].filter(Boolean);
+    const appSelect = document.getElementById('appFilter');
+    apps.forEach(app => {
+        const option = document.createElement('option');
+        option.value = app;
+        option.textContent = app;
+        appSelect.appendChild(option);
+    });
+    
+    // Get sessions
+    const sessions = groupDataBySession();
+    const sessionSelect = document.getElementById('sessionFilter');
+    Object.entries(sessions).forEach(([sessionId, session]) => {
+        const option = document.createElement('option');
+        option.value = sessionId;
+        option.textContent = `Session ${new Date(session.startTime).toLocaleString()}`;
+        sessionSelect.appendChild(option);
+    });
+}
+
+function applyFilters() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const appFilter = document.getElementById('appFilter').value;
+    const sessionFilter = document.getElementById('sessionFilter').value;
+    const activityFilter = document.getElementById('activityFilter').value;
+    
+    let filteredData = [...allTrackingData];
+    
+    // Apply date filter
+    if (startDate || endDate) {
+        filteredData = filteredData.filter(activity => {
+            const activityDate = new Date(activity.timestamp);
+            const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+            const end = endDate ? new Date(endDate + 'T23:59:59') : new Date('2100-01-01');
+            return activityDate >= start && activityDate <= end;
+        });
+    }
+    
+    // Apply app filter
+    if (appFilter) {
+        filteredData = filteredData.filter(activity => activity.appName === appFilter);
+    }
+    
+    // Apply session filter
+    if (sessionFilter) {
+        filteredData = filteredData.filter(activity => activity.sessionID === sessionFilter);
+    }
+    
+    // Apply activity type filter
+    if (activityFilter) {
+        filteredData = filteredData.filter(activity => activity.type === activityFilter);
+    }
+    
+    // Update trackingData and refresh dashboard
+    trackingData = filteredData;
+    updateDashboard();
+    
+    // Show filter summary
+    showFilterSummary(filteredData.length, allTrackingData.length);
+}
+
+function showFilterSummary(filteredCount, totalCount) {
+    const summary = document.getElementById('filter-summary') || createFilterSummary();
+    summary.innerHTML = `
+        <div class="filter-result">
+            📊 Showing ${filteredCount.toLocaleString()} of ${totalCount.toLocaleString()} activities
+            ${filteredCount < totalCount ? 
+                `<button class="btn-link" onclick="clearFilters()">Show All</button>` : ''}
+        </div>
+    `;
+}
+
+
+
+function renderDrillDownSessionChart() {
+    const ctx = document.getElementById('drillDownChart').getContext('2d');
+    if (charts.drillDownChart) {
+        charts.drillDownChart.destroy();
+    }
+
+    const sessionGroups = groupDataBySession();
+    const sessionData = [];
+    // console.log('sessionGroups :>> ', sessionGroups);
+    if (!sessionGroups || Object.keys(sessionGroups).length === 0) {
+        console.log('No session data available');
+        return;
+    }
+    // Initialize with session-level view
+
+    let sessionIndex = 1;
+
+
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+    if (sessionData.length === 0) {
+        console.log('No valid sessions found');
+        return;
+    }
+
+    
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+
+
+
+
+
+    charts.drillDownChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sessionData.map(s => s.label),
+            datasets: [{
+                data: sessionData.map(s => s.value),
+                backgroundColor: sessionData.map(s => s.color),
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverBorderWidth: 5,
+                hoverOffset: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '📊 Sessions Overview - Click to Drill Down',
+                    font: { size: 18, weight: 'bold' },
+                    color: '#2c3e50'
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { size: 14 }  
+                    }
+                },
+                
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    cornerRadius: 10,
+                    padding: 15,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            if (!tooltipItems || tooltipItems.length === 0) return '';
+                            const item = tooltipItems[0];
+                            return `🗂️ ${sessionData[item.dataIndex]?.label || 'Unknown Session'}`;
+                        },
+                        label: function(context) {
+                            if (!context || typeof context.dataIndex === 'undefined') return '';
+                            const session = sessionData[context.dataIndex];
+                            if (!session) return '';
+                            
+                            return [
+                                `📊 Activities: ${session.value}`,
+                                `⏱️ Duration: ${session.duration}`,
+                                `🖱️ Click to view apps breakdown`
+                            ];
+                        }
+                    }
+                }
+            },
+            onClick: (event, activeElements) => {
+                try {
+                    if (activeElements && activeElements.length > 0) {
+                        const elementIndex = activeElements[0].index;
+                        const selectedSession = sessionData[elementIndex];
+                        
+                        if (selectedSession) {
+                            drillDownToApps(selectedSession);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Chart click error:', error);
+                }
+            },
+            onHover: (event, activeElements) => {
+                try {
+                    if (event && event.native && event.native.target) {
+                        event.native.target.style.cursor = 
+                            (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                    }
+                } catch (error) {
+                    console.error('Chart hover error:', error);
+                }
+            }
+        }
+    });
+
+
+
+    // Store chart state
+    window.chartDrillState = {
+        level: 'session',
+        data: sessionData,
+        sessionGroups: sessionGroups
+    };
+
+}
+
+function drillDownToApps(selectedSession) {
+    const ctx = document.getElementById('drillDownChart').getContext('2d');
+    const sessionGroup = window.chartDrillState.sessionGroups[selectedSession.sessionID];
+    if (!window.chartDrillState || !window.chartDrillState.sessionGroups) {
+            console.error('Chart drill state not found');
+            return;
+        }
+
+    // Analyze apps in this session
+    const appAnalysis = analyzeSessionApps(sessionGroup);
+
+    console.log('appAnalysis :>> ', appAnalysis);
+    if (!appAnalysis || appAnalysis.length === 0) {
+            console.error('No apps found in this session');
+            return;
+        }
+        
+
+    const appData = [];
+    
+    appAnalysis.forEach((app, index) => {
+            appData.push({
+                label: app.name,
+                value: app.activities,
+                sessionID: selectedSession.sessionID,
+                appName: app.name,
+                duration: app.duration,
+                typedText: app.typedText || '',
+                pastedText: app.pastedText || '',
+                color: lightenDarkenColor(selectedSession.color, index * 40 - 80),
+                level: 'app'
+            });
+        });
+
+
+    // Destroy and recreate chart with app data
+    if (charts.drillDownChart) {
+            charts.drillDownChart.destroy();
+        }
+    
+  
+        
+
+        charts.drillDownChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: appData.map(a => a.label),
+                datasets: [{
+                    data: appData.map(a => a.value),
+                    backgroundColor: appData.map(a => a.color),
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 5,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `📱 ${selectedSession.label} - Applications Breakdown`,
+                        font: { size: 18, weight: 'bold' },
+                        color: '#2c3e50'
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 10,
+                        padding: 15,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                if (!tooltipItems || tooltipItems.length === 0) return '';
+                                const item = tooltipItems[0];
+                                return `📱 ${appData[item.dataIndex]?.label || 'Unknown App'}`;
+                            },
+                            label: function(context) {
+                                if (!context || typeof context.dataIndex === 'undefined') return '';
+                                const app = appData[context.dataIndex];
+                                if (!app) return '';
+                                
+                                return [
+                                    `📊 Activities: ${app.value}`,
+                                    `⏱️ Duration: ${app.duration}`,
+                                    `⌨️ Typed: ${(app.typedText || '').substring(0, 50)}${(app.typedText || '').length > 50 ? '...' : ''}`,
+                                    `📋 Pasted: ${(app.pastedText || '').substring(0, 50)}${(app.pastedText || '').length > 50 ? '...' : ''}`,
+                                    `🖱️ Click to view dashboard`
+                                ];
+                            }
+                        }
+                    }
+                },
+                onClick: (event, activeElements) => {
+                    try {
+                        if (activeElements && activeElements.length > 0) {
+                            const elementIndex = activeElements[0].index;
+                            const selectedApp = appData[elementIndex];
+                            
+                            if (selectedApp) {
+                                openAppDashboard(selectedApp);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('App chart click error:', error);
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    try {
+                        if (event && event.native && event.native.target) {
+                            event.native.target.style.cursor = 
+                                (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                        }
+                    } catch (error) {
+                        console.error('App chart hover error:', error);
+                    }
+                }
+            }
+        });
+
+
+    // Update chart state and add back button
+    window.chartDrillState = {
+        level: 'app',
+        data: appData,
+        parentSession: selectedSession
+    };
+    
+    addChartBackButton();
+}
+
+function validateTrackingData() {
+    if (!allTrackingData || !Array.isArray(allTrackingData)) {
+        console.error('allTrackingData is not a valid array');
+        allTrackingData = [];
+        return false;
+    }
+    
+    // Filter out invalid entries
+    allTrackingData = allTrackingData.filter(activity => 
+        activity && 
+        activity.timestamp && 
+        activity.type && 
+        (activity.sessionID || activity.sessionID === 0)
+    );
+    
+    console.log(`Validated ${allTrackingData.length} activities`);
+    return allTrackingData.length > 0;
+}
+
+
+function analyzeSessionApps(sessionGroup) {
+    const apps = {};
+    
+    sessionGroup.activities.forEach(activity => {
+        const appName = activity.appName || 'Unknown';
+        
+        if (!apps[appName]) {
+            apps[appName] = {
+                name: appName,
+                activities: 0,
+                startTime: new Date(activity.timestamp),
+                endTime: new Date(activity.timestamp),
+                typedText: '',
+                pastedText: ''
+            };
+        }
+        
+        apps[appName].activities++;
+        apps[appName].endTime = new Date(activity.timestamp);
+        
+        // Collect text content
+        if (activity.type === 'paste') {
+            apps[appName].pastedText += activity.text + ' ';
+        } else if (activity.type === 'keystroke') {
+            const key = activity.key === 'SPACE' ? ' ' : 
+                       (activity.key && activity.key.length === 1 ? activity.key : '');
+            if (key) apps[appName].typedText += key;
+        }
+    });
+    
+    // Calculate durations and clean up text
+    return Object.values(apps).map(app => ({
+        ...app,
+        duration: formatDuration(app.endTime - app.startTime),
+        typedText: app.typedText.trim(),
+        pastedText: app.pastedText.trim()
+    })).sort((a, b) => b.activities - a.activities);
+}
+
+function openAppDashboard(selectedApp) {
+    // Filter data for this specific app and session
+    const filteredData = allTrackingData.filter(activity => 
+        activity.sessionID === selectedApp.sessionID && 
+        activity.appName === selectedApp.appName
+        
+    );
+    console.log('filteredData :>> ', filteredData);
+
+    if (!filteredData || filteredData.length === 0) {
+        console.error('No data found for this app/session combination');
+        alert('No data available for this selection');
+        return;
+    }
+
+
+    // Store original data for restoration
+    if (!window.originalTrackingData) {
+        window.originalTrackingData = [...trackingData];
+    }
+    
+    // Update global tracking data
+    trackingData = filteredData;
+    
+    // Calculate session info
+    const sessionStart = new Date(filteredData[0].timestamp);
+    const sessionEnd = new Date(filteredData[filteredData.length - 1].timestamp);
+    console.log('sessionStart.getTime() :>> ', sessionStart.getTime());
+    console.log('sessionEnd.getTime() :>> ', sessionEnd.getTime());
+    if (isNaN(sessionStart.getTime()) || isNaN(sessionEnd.getTime())) {
+        console.error('Invalid timestamps in filtered data');
+        return;
+    }
+    
+    // Update dashboard header with specific info
+    updateDashboardHeader(selectedApp, sessionStart, sessionEnd);
+    
+    // Refresh entire dashboard with filtered data
+    updateDashboard();
+    
+    // Add enhanced navigation
+    addAppDashboardNavigation(selectedApp);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateDashboardHeader(selectedApp, sessionStart, sessionEnd) {
+    const header = document.querySelector('.header');
+    header.innerHTML = `
+        <div class="app-dashboard-header">
+            <h1>📱 ${selectedApp.appName} Dashboard</h1>
+            <div class="session-info-detailed">
+                <div class="info-row">
+                    <div class="info-item">
+                        <span class="info-label">Session</span>
+                        <span class="info-value">${window.chartDrillState.parentSession.label}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Date</span>
+                        <span class="info-value">${sessionStart.toLocaleDateString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Time Range</span>
+                        <span class="info-value">${sessionStart.toLocaleTimeString()} - ${sessionEnd.toLocaleTimeString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Duration</span>
+                        <span class="info-value">${formatDuration(sessionEnd - sessionStart)}</span>
+                    </div>
+                </div>
+                <div class="content-preview">
+                    <div class="typed-preview">
+                        <strong>⌨️ Typed Content:</strong>
+                        <span>${selectedApp.typedText.substring(0, 100)}${selectedApp.typedText.length > 100 ? '...' : ''}</span>
+                    </div>
+                    <div class="pasted-preview">
+                        <strong>📋 Pasted Content:</strong>
+                        <span>${selectedApp.pastedText.substring(0, 100)}${selectedApp.pastedText.length > 100 ? '...' : ''}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addAppDashboardNavigation(selectedApp) {
+    const controls = document.querySelector('.controls');
+    
+    // Remove existing navigation if present
+    const existingNav = document.getElementById('appDashboardNav');
+    if (existingNav) existingNav.remove();
+    
+    const navigation = document.createElement('div');
+    navigation.id = 'appDashboardNav';
+    navigation.className = 'app-dashboard-nav';
+    navigation.innerHTML = `
+        <button class="nav-btn back-to-apps" onclick="backToAppsView()">
+            ← Back to Apps
+        </button>
+        <button class="nav-btn back-to-sessions" onclick="backToSessionsView()">
+            ← Back to Sessions
+        </button>
+        <button class="nav-btn show-all" onclick="showAllSessions()">
+            🏠 Show All Data
+        </button>
+        <div class="current-view">
+            📍 Viewing: ${selectedApp.appName} in ${window.chartDrillState.parentSession.label}
+        </div>
+    `;
+    
+    controls.appendChild(navigation);
+}
+
+function addChartBackButton() {
+    const chartContainer = document.getElementById('drillDownChart').parentElement;
+    
+    // Remove existing back button
+    const existingBtn = chartContainer.querySelector('.chart-back-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    const backButton = document.createElement('button');
+    backButton.className = 'chart-back-btn';
+    backButton.innerHTML = '← Back to Sessions';
+    backButton.onclick = backToSessionsView;
+    
+    chartContainer.insertBefore(backButton, chartContainer.firstChild);
+}
+
+function backToAppsView() {
+    if (window.chartDrillState.parentSession) {
+        drillDownToApps(window.chartDrillState.parentSession);
+    }
+}
+
+function backToSessionsView() {
+    renderDrillDownSessionChart();
+    
+    // Remove app dashboard navigation
+    const nav = document.getElementById('appDashboardNav');
+    if (nav) nav.remove();
+    
+    // Restore original header
+    const header = document.querySelector('.header');
+    header.innerHTML = `
+        <h1>Activity Tracker Dashboard</h1>
+        <div class="session-info">
+            <div class="info-item">
+                <span class="info-label">Session Duration</span>
+                <span class="info-value" id="sessionDuration">--:--:--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total Keystrokes</span>
+                <span class="info-value" id="totalKeystrokes">0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Words Typed</span>
+                <span class="info-value" id="wordsTyped">0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Active Applications</span>
+                <span class="info-value" id="activeApps">0</span>
+            </div>
+        </div>
+    `;
+}
+
+
+function generateQRReport() {
+    const qrContainer = document.getElementById('qrCodeContainer');
+    
+    // Clear any previous QR code and message from the container
+    qrContainer.innerHTML = ''; 
+
+    if (!allTrackingData || allTrackingData.length === 0) {
+        qrContainer.innerHTML = '<p>No data available to generate a QR report.</p>';
+        qrContainer.style.display = 'block';
+        return;
+    }
+
+    try {
+        // Convert the entire dataset to a JSON string
+        const dataString = JSON.stringify(allTrackingData);
+
+        // Kjua.js options
+        const options = {
+            text: dataString,
+            render: 'canvas', // Render as a canvas element
+            size: 256,
+            crisp: true,
+            fill: '#333',     // QR code color
+            back: '#fff'      // Background color
+        };
+
+        // Generate the QR code element using kjua
+        const qrElement = kjua(options);
+
+        // Create the instructional message
+        const qrMessage = document.createElement('p');
+        qrMessage.id = 'qr-message';
+        qrMessage.textContent = `Scan this QR code to get the raw JSON data for all ${allTrackingData.length} activities.`;
+
+        // Append the new QR code and message to the container
+        qrContainer.appendChild(qrElement);
+        qrContainer.appendChild(qrMessage);
+        
+        // Make the container visible
+        qrContainer.style.display = 'block';
+
+    } catch (error) {
+        console.error("Error generating QR code:", error);
+        qrContainer.innerHTML = '<p>Failed to generate QR code. The data might be too large.</p>';
+        qrContainer.style.display = 'block';
+    }
+}
+
+
+function showAllSessions() {
+    const allSessions = document.querySelectorAll('.session-item');
+    const showAllBtn = document.getElementById('showAllSessionsBtn');
+    
+    // Show all sessions
+    allSessions.forEach(item => {
+        item.classList.remove('collapsed', 'expanded', 'active');
+    });
+    
+    // Hide the "Show All Sessions" button
+    if (showAllBtn) {
+       showAllBtn.classList.remove('visible');
+    }
+    const sentenceChartContainer = document.getElementById('per-sentence-chart-container');
+    if (sentenceChartContainer) {
+        sentenceChartContainer.style.display = 'none';
+    }
+    
+    // Restore original data if needed
+    if (window.originalTrackingData) {
+        allTrackingData = window.originalTrackingData;
+        trackingData = window.originalTrackingData;
+        delete window.originalTrackingData;
+    }
+    
+    // Update dashboard to show all data
+    updateDashboard();
+    
+    // Reset header
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.textContent = 'Activity Tracker Dashboard';
+    
+    // Remove any existing back buttons
+    const backBtn = document.getElementById('backToAllBtn');
+    if (backBtn) backBtn.remove();
+    
+    // Remove app dashboard navigation
+    const nav = document.getElementById('appDashboardNav');
+    if (nav) nav.remove();
+}
+
+
+// Helper functions
+function calculateSessionDuration(session) {
+    const start = new Date(session.startTime);
+    const end = new Date(session.endTime);
+    return formatDuration(end - start);
+}
+
+
+function formatDuration(milliseconds) {
+    if (!milliseconds || milliseconds < 0) return '0s';
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+
+function getSessionColor(index) {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+    ];
+    return colors[index % colors.length];
+}
+
+function lightenDarkenColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+    }
+    var num = parseInt(col, 16);
+    var r = (num >> 16) + amt;
+    var g = (num >> 8 & 0x00FF) + amt;
+    var b = (num & 0x0000FF) + amt;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + (r << 16 | g << 8 | b).toString(16);
+}
+
+function adjustColorBrightness(color, amount) {
+    const usePound = color[0] === "#";
+    const col = usePound ? color.slice(1) : color;
+    const num = parseInt(col, 16);
+    let r = (num >> 16) + amount;
+    let g = (num >> 8 & 0x00FF) + amount;
+    let b = (num & 0x0000FF) + amount;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + String("000000" + (r << 16 | g << 8 | b).toString(16)).slice(-6);
+}
+
+
+
+        function updateStats() {
+            // console.log('trackingData :>> ', trackingData);
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            const mouseEvents = trackingData.filter(d => d.type === 'mouse');
+            const apps = [...new Set(trackingData.map(d => d.appName))];
+            
+            document.getElementById('totalKeystrokes').textContent = keystrokes.length;
+            document.getElementById('activeApps').textContent = apps.length;
+            document.getElementById('mouseClicks').textContent = mouseEvents.length;
+            
+            // Calculate words typed
+            const words = calculateWordsTyped(keystrokes);
+            document.getElementById('wordsTyped').textContent = words;
+            
+            // Calculate average WPM
+            if (sessionData && sessionData.startTime && sessionData.endTime) {
+                const duration = (new Date(sessionData.endTime) - new Date(sessionData.startTime)) / 60000; // minutes
+                const wpm = Math.round(words / duration);
+                document.getElementById('avgWPM').textContent = isNaN(wpm) ? 0 : wpm;
+                
+                // Update session duration
+                const hours = Math.floor(duration / 60);
+                const minutes = Math.floor(duration % 60);
+                const seconds = Math.floor((duration % 1) * 60);
+                document.getElementById('sessionDuration').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Count paste events and backspaces
+            const pasteEvents = keystrokes.filter(k => k.key && k.key.includes('V') && k.ctrlKey).length;
+            const backspaces = keystrokes.filter(k => k.key === 'BACKSPACE' || k.key === 'DELETE').length;
+            
+            document.getElementById('pasteCount').textContent = pasteEvents;
+            document.getElementById('backspaceCount').textContent = backspaces;
+        }
+
+        function calculateWordsTyped(keystrokes) {
+            let text = '';
+            keystrokes.forEach(k => {
+                if (k.key && k.key.length === 1 && k.key.match(/[a-zA-Z0-9\s]/)) {
+                    text += k.key;
+                } else if (k.key === 'SPACE') {
+                    text += ' ';
+                }
+            });
+            return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+        }
+
+        function renderSessions() {
+            const sessionsContainer = document.getElementById('sessions-container');
+            sessionsContainer.innerHTML = '<h2>Session Activity</h2>'; // Clear and add header
+            const singleBlock = document.createElement('div');
+            singleBlock.className = 'session-block';
+            let textBuffer = '';
+            let currentType = 'typed';
+            trackingData.forEach((activity, index) => {
+        if (activity.type === 'paste') {
+            // If there's any typed text, display it first
+            if (textBuffer) {
+                const typedSpan = document.createElement('span');
+                typedSpan.className = 'sentence typed';
+                typedSpan.textContent = textBuffer;
+                singleBlock.appendChild(typedSpan);
+                textBuffer = ''; // Reset the buffer
+            }
+            // Now display the pasted text
+            const pasteSpan = document.createElement('span');
+            pasteSpan.className = 'sentence pasted';
+            pasteSpan.textContent = activity.text;
+            singleBlock.appendChild(pasteSpan);
+
+        } else if (activity.type === 'keystroke') {
+            const key = activity.key === 'SPACE' ? ' ' : (activity.key?.length === 1 ? activity.key : '');
+            if (key) {
+                textBuffer += key;
+            }
+        }
+    });
+
+    if (textBuffer) {
+        const span = document.createElement('span');
+        span.className = 'sentence typed';
+        span.textContent = textBuffer;
+        singleBlock.appendChild(span);
+    }
+    
+    sessionsContainer.appendChild(singleBlock);
+
+
+            const sessions = groupDataBySession();
+
+            
+      
+        }
+
+        
+        function renderAppUsageChart() {
+            const ctx = document.getElementById('appUsageChart').getContext('2d');
+            if (charts.appUsageChart) {
+                charts.appUsageChart.destroy();
+            }
+
+            // <<< NEW: Data processing for multi-level chart
+            const usageData = {};
+            allTrackingData.forEach(act => {
+                if (!usageData[act.appName]) {
+                    usageData[act.appName] = { count: 0, titles: {} };
+                }
+                usageData[act.appName].count++;
+                
+                if (!usageData[act.appName].titles[act.windowTitle]) {
+                    usageData[act.appName].titles[act.windowTitle] = 0;
+                }
+                usageData[act.appName].titles[act.windowTitle]++;
+            });
+
+            console.log('allTrackingData :>> ', allTrackingData);
+            const appLabels = Object.keys(usageData);
+            const appCounts = appLabels.map(app => usageData[app].count);
+
+            const titleLabels = [];
+            const titleCounts = [];
+            const titleColors = [];
+
+            const baseColors = ['#36A2EB', '#FF6384', '#FF9F40', '#4BC0C0', '#9966FF', '#FFCD56'];
+
+            appLabels.forEach((appName, index) => {
+                const titles = usageData[appName].titles;
+                const appColor = baseColors[index % baseColors.length];
+                let colorIndex = 0;
+                for (const title in titles) {
+                    titleLabels.push(title);
+                    titleCounts.push(titles[title]);
+                    // Generate shades for sub-categories
+                    titleColors.push(appColor + (99 - (colorIndex * 15)).toString()); 
+                    colorIndex++;
+                }
+            });
+
+console.log('appLabels :>> ', appLabels);
+            charts.appUsageChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: appLabels, // Ensure top-level labels
+        datasets: [
+            {
+                label: 'Applications',
+                data: appCounts,
+                backgroundColor: baseColors,
+                labels: appLabels // Add labels to dataset
+            },
+            {
+                label: 'Window Titles',
+                data: titleCounts,
+                backgroundColor: titleColors,
+                labels: titleLabels // Already correct
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const dataset = context.dataset;
+                        let label = dataset.labels[context.dataIndex] || context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += context.parsed;
+                        return label;
+                    }
+                }
+            }
+        }
+    }
+});
+      
+        }
+        function updateCharts() {
+            updateActivityChart();
+            updateAppChart();
+            updateKeystrokeChart();
+            updateMouseChart();
+        }
+
+        function updateActivityChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            
+            if (charts.activityChart) {
+                charts.activityChart.destroy();
+            }
+            
+            // Group activities by time intervals (5-minute intervals)
+            const timeGroups = {};
+            trackingData.forEach(activity => {
+                const time = new Date(activity.timestamp);
+                const interval = Math.floor(time.getMinutes() / 5) * 5;
+                const key = `${time.getHours()}:${interval.toString().padStart(2, '0')}`;
+                
+                if (!timeGroups[key]) {
+                    timeGroups[key] = { keystrokes: 0, mouse: 0 };
+                }
+                
+                if (activity.type === 'keystroke') {
+                    timeGroups[key].keystrokes++;
+                } else if (activity.type === 'mouse') {
+                    timeGroups[key].mouse++;
+                }
+            });
+            
+            const labels = Object.keys(timeGroups).sort();
+            const keystrokeData = labels.map(label => timeGroups[label].keystrokes);
+            const mouseData = labels.map(label => timeGroups[label].mouse);
+            
+            charts.activityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Keystrokes',
+                        data: keystrokeData,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Mouse Events',
+                        data: mouseData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateAppChart() {
+            const ctx = document.getElementById('appChart').getContext('2d');
+            
+            if (charts.appChart) {
+                charts.appChart.destroy();
+            }
+            
+            // Count activities by application
+            const appCounts = {};
+            trackingData.forEach(activity => {
+                const app = activity.appName || 'Unknown';
+                appCounts[app] = (appCounts[app] || 0) + 1;
+            });
+            
+            const sortedApps = Object.entries(appCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 10); // Top 10 apps
+            
+            const labels = sortedApps.map(([app]) => app);
+            const data = sortedApps.map(([,count]) => count);
+            const colors = [
+                '#3498db', '#2ecc71', '#9b59b6',
+                '#1abc9c', '#34495e', '#f1c40f', '#95a5a6'
+            ];
+    
+            charts.appChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateKeystrokeChart() {
+            const ctx = document.getElementById('keystrokeChart').getContext('2d');
+            
+            if (charts.keystrokeChart) {
+                charts.keystrokeChart.destroy();
+            }
+            
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            const keyCounts = {};
+            
+            keystrokes.forEach(k => {
+                const key = k.key || 'Unknown';
+                if (key.length === 1 && key.match(/[a-zA-Z]/)) {
+                    keyCounts[key.toUpperCase()] = (keyCounts[key.toUpperCase()] || 0) + 1;
+                }
+            });
+            
+            const sortedKeys = Object.entries(keyCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 15);
+            
+            const labels = sortedKeys.map(([key]) => key);
+            const data = sortedKeys.map(([,count]) => count);
+            
+            charts.keystrokeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frequency',
+                        data: data,
+                        backgroundColor: '#3498db',
+                        borderColor: '#2980b9',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMouseChart() {
+            const ctx = document.getElementById('mouseChart').getContext('2d');
+            
+            if (charts.mouseChart) {
+                charts.mouseChart.destroy();
+            }
+            
+            const mouseEvents = trackingData.filter(d => d.type === 'mouse');
+            
+            // Create a simple scatter plot for mouse positions
+            const scatterData = mouseEvents.map(event => ({
+                x: event.x,
+                y: event.y
+            }));
+            
+            charts.mouseChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Mouse Positions',
+                        data: scatterData,
+                        backgroundColor: 'rgba(0, 76, 160, 0.5)',
+                        borderColor: '#3ce7a2',
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'X Position'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Y Position'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateActivityLog() {
+            const activityList = document.getElementById('activityList');
+            let filteredData = trackingData;
+            
+            if (currentFilter !== 'all') {
+                filteredData = trackingData.filter(activity => {
+                    if (currentFilter === 'paste') {
+                        return activity.type === 'keystroke' && activity.key && activity.key.includes('V');
+                    }
+                    return activity.type === currentFilter;
+                });
+            }
+            
+            // Show only last 50 activities for performance
+            const recentActivities = filteredData.slice(-50).reverse();
+            
+            activityList.innerHTML = recentActivities.map(activity => {
+                const time = new Date(activity.timestamp).toLocaleTimeString();
+                const className = getActivityClass(activity);
+                
+                return `
+                    <div class="activity-item ${className}">
+                        <div class="activity-header">
+                            <span>${activity.type === 'keystroke' ? 'Key: ' + (activity.key || 'Unknown') : 'Mouse'}</span>
+                            <span>${time}</span>
+                        </div>
+                        <div class="activity-content">
+                            App: ${activity.appName || 'Unknown'} | 
+                            Window: ${activity.windowTitle || 'Unknown'}
+                            ${activity.url ? ` | URL: ${activity.url}` : ''}
+                            ${activity.x !== undefined ? ` | Position: (${activity.x}, ${activity.y})` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getActivityClass(activity) {
+            if (activity.type === 'keystroke') {
+                if (activity.key && activity.key.includes('V')) {
+                    return 'pasted';
+                }
+                // You can add more logic here for fast typing detection
+                return 'typed';
+            }
+            return '';
+        }
+
+        function updateTextAnalysis() {
+            const textContent = document.getElementById('textContent');
+            
+            // Reconstruct text from keystrokes
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            let reconstructedText = '';
+            let sentences = [];
+            let currentSentence = '';
+            textContent.innerHTML = ''; // Clear the display first
+
+            let textBuffer = '';
+let currentType = 'typed';
+
+trackingData.forEach((activity, index) => {
+    if (activity.type === 'paste') {
+        // Flush any existing buffer first
+        if (textBuffer) {
+            const span = document.createElement('span');
+            span.className = `sentence ${currentType}`;
+            span.textContent = textBuffer;
+            textContent.appendChild(span);
+            textBuffer = '';
+        }
+        // Add pasted content
+        const span = document.createElement('span');
+        span.className = 'sentence pasted';
+        span.textContent = activity.text;
+        textContent.appendChild(span);
+    } else if (activity.type === 'keystroke') {
+        const key = activity.key === 'SPACE' ? ' ' : (activity.key?.length === 1 ? activity.key : '');
+        if (key) {
+            textBuffer += key;
+            currentType = 'typed';
+        }
+    }
+    
+    // Flush buffer at the end
+    if (index === trackingData.length - 1 && textBuffer) {
+        const span = document.createElement('span');
+        span.className = `sentence ${currentType}`;
+        span.textContent = textBuffer;
+        textContent.appendChild(span);
+    }
+});
+
+        
+            if (currentSentence.trim()) {
+                sentences.push({
+                    text: currentSentence.trim(),
+                    type: 'typed'
+                });
+            }
+            
+        }
+
+
+
+        function updateTypingRhythm() {
+            const canvas = document.getElementById('rhythmCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const allEvents = trackingData
+                .filter(d => d.type === 'keystroke' || d.type === 'paste')
+                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            if (allEvents.length < 2) return;
+            
+            // --- MODIFICATION 1: Store event type and the amount of text for each event ---
+            const eventData = [];
+            let totalTextLength = 0;
+            for (let i = 0; i < allEvents.length; i++) {
+                const type = allEvents[i].type;
+                // A keystroke has a length of 1. A paste's length is the length of its text.
+                const textLength = (type === 'paste') ? allEvents[i].text.length : 1;
+                totalTextLength += textLength;
+                
+                const interval = (i > 0) ? new Date(allEvents[i].timestamp) - new Date(allEvents[i-1].timestamp) : 0;
+                
+                eventData.push({ type, textLength, interval });
+            }
+            
+            if (eventData.length === 0) return;
+
+            const realisticMaxInterval = Math.max(...eventData.map(d => d.interval).filter(i => i < 5000), 500);
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // --- MODIFICATION 2: Use a running total of text length to determine X-position ---
+            let currentXPosition = 0;
+
+            for (let i = 0; i < eventData.length; i++) {
+                const event = eventData[i];
+                const segmentWidth = (event.textLength / totalTextLength) * width;
+
+                const y1_interval = (i > 0) ? eventData[i-1].interval : event.interval;
+                const y1 = height - (Math.min(y1_interval, realisticMaxInterval) / realisticMaxInterval) * height;
+                
+                let y2;
+
+                if (event.type === 'paste') {
+                    // For a paste, keep the line horizontal.
+                    y2 = y1;
+                    ctx.strokeStyle = '#e74c3c';
+                    ctx.lineWidth = 4;
+                } else {
+                    // For a keystroke, calculate Y based on the interval.
+                    y2 = height - (Math.min(event.interval, realisticMaxInterval) / realisticMaxInterval) * height;
+                    ctx.strokeStyle = '#3498db';
+                    ctx.lineWidth = 2;
+                }
+                
+                const x1 = currentXPosition;
+                const x2 = currentXPosition + segmentWidth;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // Update the X position for the next segment.
+                currentXPosition = x2;
+            }
+
+            // Redraw the gray dashed baseline
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        
+
+        function filterActivities(filter) {
+            currentFilter = filter;
+            
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateActivityLog();
+        }
+
+        async function refreshData() {
+            document.getElementById('session-list').style.display = 'block';
+
+            document.querySelector('.header').style.display = 'block';
+    // Hide the special report container
+    document.getElementById('app-summary-report').style.display = 'none';
+
+            await loadSessionList(); 
+    
+    // 2. Then, fetch all the latest activity data.
+    allTrackingData = await ipcRenderer.invoke('get-tracking-data');
+    
+    // 3. Reset the main data view to show everything.
+    trackingData = allTrackingData; 
+    
+    // 4. Update all charts and content on the dashboard.
+    updateDashboard();
+    
+    // 5. Reset the main header to its default state.
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.textContent = 'Activity Tracker Dashboard';
+    
+    // 6. Make sure the "Show All Sessions" button is hidden again.
+    const showAllBtn = document.getElementById('showAllSessionsBtn');
+    if (showAllBtn) {
+        showAllBtn.classList.remove('visible');
+    }
+
+            loadTrackingData();
+        }
+
+        function generatePDF() {
+       
+        }
+
+        function finalizeContextGroup(contextGroup, textBuffer, currentContext) {
+        if (textBuffer.trim()) {
+            const span = document.createElement('span');
+            span.className = `sentence ${currentContext.includes('pasted') ? 'pasted' : 'typed'}`;
+            span.textContent = textBuffer.trim();
+            span.dataset.tooltip = currentContext.replace(' pasted', '');
+            contextGroup.appendChild(span);
+    }
+}
+
+function createFiltersSection() {
+    const filtersSection = document.createElement('div');
+    filtersSection.className = 'filters-section';
+    filtersSection.style.cssText = `
+        background: rgba(255, 255, 255, 0.95);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    `;
+    document.querySelector('.dashboard').insertBefore(filtersSection, document.querySelector('.stats-grid'));
+    return filtersSection;
+}
+
+function createFilterSummary() {
+    const summary = document.createElement('div');
+    summary.id = 'filter-summary';
+    summary.style.cssText = `
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #333;
+    `;
+    document.querySelector('.dashboard').insertBefore(summary, document.querySelector('.stats-grid'));
+    return summary;
+}
+
+function clearFilters() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('appFilter').value = '';
+    document.getElementById('sessionFilter').value = '';
+    document.getElementById('activityFilter').value = '';
+    trackingData = [...allTrackingData];
+    updateDashboard();
+    showFilterSummary(trackingData.length, allTrackingData.length);
+}
+
+function exportFilteredData() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Filtered Activity Report', 20, 30);
+    
+    let yPos = 50;
+    doc.setFontSize(12);
+    doc.text(`Filtered Activities: ${trackingData.length}`, 20, yPos);
+    yPos += 10;
+    
+    const appCounts = {};
+    trackingData.forEach(activity => {
+        const app = activity.appName || 'Unknown';
+        appCounts[app] = (appCounts[app] || 0) + 1;
+    });
+    
+    doc.text('Applications:', 20, yPos);
+    yPos += 10;
+    Object.entries(appCounts).forEach(([app, count]) => {
+        doc.text(`${app}: ${count} activities`, 25, yPos);
+        yPos += 8;
+        if (yPos > 280) {
+            doc.addPage();
+            yPos = 30;
+        }
+    });
+    
+    doc.save(`filtered_activity_report_${Date.now()}.pdf`);
+}
+
+function setupFilterEventListeners() {
+    const inputs = ['startDate', 'endDate', 'appFilter', 'sessionFilter', 'activityFilter'];
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('change', applyFilters);
+        }
+    });
+}
+
+
+    </script>
+</body>
+</html>

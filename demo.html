@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Tracker Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        .header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .session-info {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-label {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .info-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            height: 500px;
+            margin: 40px auto;
+        }
+        .controls {
+            padding: 10px;
+            text-align: center;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .app-dashboard-header {
+            text-align: center;
+        }
+        .session-info-detailed {
+            background: #ecf0f1;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        .content-preview {
+            text-align: left;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #bdc3c7;
+        }
+        .typed-preview, .pasted-preview {
+            margin-bottom: 10px;
+        }
+        .typed-preview strong, .pasted-preview strong {
+            color: #2c3e50;
+        }
+        .typed-preview span, .pasted-preview span {
+            font-family: 'Courier New', Courier, monospace;
+            background: #ffffff;
+            padding: 5px;
+            border-radius: 4px;
+            display: block;
+            margin-top: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .app-dashboard-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+        }
+        .nav-btn, .chart-back-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        .nav-btn:hover, .chart-back-btn:hover {
+            background-color: #2980b9;
+        }
+        .chart-back-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+        }
+        .current-view {
+            font-weight: bold;
+            color: #34495e;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Activity Tracker Dashboard</h1>
+            <div class="session-info">
+                <div class="info-item">
+                    <span class="info-label">Session Duration</span>
+                    <span class="info-value" id="sessionDuration">--:--:--</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Keystrokes</span>
+                    <span class="info-value" id="totalKeystrokes">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Words Typed</span>
+                    <span class="info-value" id="wordsTyped">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Active Applications</span>
+                    <span class="info-value" id="activeApps">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+             <!-- Navigation buttons will be injected here -->
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="drillDownChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA SETUP (Sample Data) ---
+        let allTrackingData = [
+            // Session 1
+            { timestamp: "2025-07-26T10:00:00Z", type: 'keystroke', key: 'H', appName: 'VS Code', sessionID: 1 },
+            { timestamp: "2025-07-26T10:00:01Z", type: 'keystroke', key: 'e', appName: 'VS Code', sessionID: 1 },
+            { timestamp: "2025-07-26T10:00:02Z", type: 'keystroke', key: 'l', appName: 'VS Code', sessionID: 1 },
+            { timestamp: "2025-07-26T10:00:03Z", type: 'paste', text: 'Hello World', appName: 'VS Code', sessionID: 1 },
+            { timestamp: "2025-07-26T10:01:00Z", type: 'click', appName: 'Chrome', sessionID: 1 },
+            { timestamp: "2025-07-26T10:01:05Z", type: 'keystroke', key: 'S', appName: 'Chrome', sessionID: 1 },
+            
+            // Session 2
+            { timestamp: "2025-07-26T11:30:00Z", type: 'keystroke', key: 't', appName: 'Word', sessionID: 2 },
+            { timestamp: "2025-07-26T11:30:05Z", type: 'paste', text: 'This is a test document.', appName: 'Word', sessionID: 2 },
+            { timestamp: "2025-07-26T11:31:00Z", type: 'click', appName: 'Word', sessionID: 2 },
+            
+            // Session 3
+            { timestamp: "2025-07-26T14:00:00Z", type: 'click', appName: 'Photoshop', sessionID: 3 },
+            { timestamp: "2025-07-26T14:05:00Z", type: 'click', appName: 'Photoshop', sessionID: 3 },
+        ];
+        let trackingData = [...allTrackingData];
+        const charts = { drillDownChart: null };
+        window.chartDrillState = {};
+
+        // --- ALL YOUR FUNCTIONS ---
+
+        function renderDrillDownSessionChart() {
+            const ctx = document.getElementById('drillDownChart').getContext('2d');
+            if (charts.drillDownChart) {
+                charts.drillDownChart.destroy();
+            }
+
+            const sessionGroups = groupDataBySession();
+            const sessionData = [];
+            
+            if (!sessionGroups || Object.keys(sessionGroups).length === 0) {
+                console.log('No session data available');
+                return;
+            }
+
+            let sessionIndex = 1;
+            for (const sessionID in sessionGroups) {
+                const session = sessionGroups[sessionID];
+                
+                if (!session || !session.activities || session.activities.length === 0) {
+                    continue;
+                }
+                
+                const totalActivities = session.activities.length;
+                const duration = calculateSessionDuration(session);
+                
+                sessionData.push({
+                    label: `Session ${sessionIndex}`,
+                    value: totalActivities,
+                    sessionID: sessionID,
+                    duration: duration,
+                    color: getSessionColor(sessionIndex - 1),
+                    level: 'session'
+                });
+                sessionIndex++;
+            }
+
+            if (sessionData.length === 0) {
+                console.log('No valid sessions found');
+                return;
+            }
+
+            charts.drillDownChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: sessionData.map(s => s.label),
+                    datasets: [{
+                        data: sessionData.map(s => s.value),
+                        backgroundColor: sessionData.map(s => s.color),
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 5,
+                        hoverOffset: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '📊 Sessions Overview - Click to Drill Down',
+                            font: { size: 18, weight: 'bold' },
+                            color: '#2c3e50'
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { size: 14 }  
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            cornerRadius: 10,
+                            padding: 15,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    if (!tooltipItems || tooltipItems.length === 0) return '';
+                                    const item = tooltipItems[0];
+                                    return `🗂️ ${sessionData[item.dataIndex]?.label || 'Unknown Session'}`;
+                                },
+                                label: function(context) {
+                                    if (!context || typeof context.dataIndex === 'undefined') return '';
+                                    const session = sessionData[context.dataIndex];
+                                    if (!session) return '';
+                                    
+                                    return [
+                                        `📊 Activities: ${session.value}`,
+                                        `⏱️ Duration: ${session.duration}`,
+                                        `🖱️ Click to view apps breakdown`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, activeElements) => {
+                        try {
+                            if (activeElements && activeElements.length > 0) {
+                                const elementIndex = activeElements[0].index;
+                                const selectedSession = sessionData[elementIndex];
+                                
+                                if (selectedSession) {
+                                    drillDownToApps(selectedSession);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Chart click error:', error);
+                        }
+                    },
+                    onHover: (event, activeElements) => {
+                        try {
+                            if (event && event.native && event.native.target) {
+                                event.native.target.style.cursor = 
+                                    (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                            }
+                        } catch (error) {
+                            console.error('Chart hover error:', error);
+                        }
+                    }
+                }
+            });
+
+            window.chartDrillState = {
+                level: 'session',
+                data: sessionData,
+                sessionGroups: sessionGroups
+            };
+        }
+
+        function drillDownToApps(selectedSession) {
+            const ctx = document.getElementById('drillDownChart').getContext('2d');
+            if (!window.chartDrillState || !window.chartDrillState.sessionGroups) {
+                    console.error('Chart drill state not found');
+                    return;
+                }
+
+            const sessionGroup = window.chartDrillState.sessionGroups[selectedSession.sessionID];
+            const appAnalysis = analyzeSessionApps(sessionGroup);
+
+            if (!appAnalysis || appAnalysis.length === 0) {
+                    console.error('No apps found in this session');
+                    return;
+            }
+
+            const appData = appAnalysis.map((app, index) => ({
+                label: app.name,
+                value: app.activities,
+                sessionID: selectedSession.sessionID,
+                appName: app.name,
+                duration: app.duration,
+                typedText: app.typedText || '',
+                pastedText: app.pastedText || '',
+                color: lightenDarkenColor(selectedSession.color, index * 40 - 80),
+                level: 'app'
+            }));
+
+            if (charts.drillDownChart) {
+                    charts.drillDownChart.destroy();
+            }
+        
+            charts.drillDownChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: appData.map(a => a.label),
+                    datasets: [{
+                        data: appData.map(a => a.value),
+                        backgroundColor: appData.map(a => a.color),
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 5,
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `📱 ${selectedSession.label} - Applications Breakdown`,
+                            font: { size: 18, weight: 'bold' },
+                            color: '#2c3e50'
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            cornerRadius: 10,
+                            padding: 15,
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    if (!tooltipItems || tooltipItems.length === 0) return '';
+                                    const item = tooltipItems[0];
+                                    return `📱 ${appData[item.dataIndex]?.label || 'Unknown App'}`;
+                                },
+                                label: function(context) {
+                                    if (!context || typeof context.dataIndex === 'undefined') return '';
+                                    const app = appData[context.dataIndex];
+                                    if (!app) return '';
+                                    
+                                    return [
+                                        `📊 Activities: ${app.value}`,
+                                        `⏱️ Duration: ${app.duration}`,
+                                        `⌨️ Typed: ${(app.typedText || '').substring(0, 50)}${(app.typedText || '').length > 50 ? '...' : ''}`,
+                                        `📋 Pasted: ${(app.pastedText || '').substring(0, 50)}${(app.pastedText || '').length > 50 ? '...' : ''}`,
+                                        `🖱️ Click to view dashboard`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, activeElements) => {
+                        try {
+                            if (activeElements && activeElements.length > 0) {
+                                const elementIndex = activeElements[0].index;
+                                const selectedApp = appData[elementIndex];
+                                
+                                if (selectedApp) {
+                                    openAppDashboard(selectedApp);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('App chart click error:', error);
+                        }
+                    },
+                    onHover: (event, activeElements) => {
+                        try {
+                            if (event && event.native && event.native.target) {
+                                event.native.target.style.cursor = 
+                                    (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                            }
+                        } catch (error) {
+                            console.error('App chart hover error:', error);
+                        }
+                    }
+                }
+            });
+
+            window.chartDrillState = {
+                level: 'app',
+                data: appData,
+                parentSession: selectedSession
+            };
+            
+            addChartBackButton();
+        }
+
+        function validateTrackingData() {
+            if (!allTrackingData || !Array.isArray(allTrackingData)) {
+                console.error('allTrackingData is not a valid array');
+                allTrackingData = [];
+                return false;
+            }
+            
+            allTrackingData = allTrackingData.filter(activity => 
+                activity && 
+                activity.timestamp && 
+                activity.type && 
+                (activity.sessionID || activity.sessionID === 0)
+            );
+            
+            console.log(`Validated ${allTrackingData.length} activities`);
+            return allTrackingData.length > 0;
+        }
+
+        function analyzeSessionApps(sessionGroup) {
+            const apps = {};
+            
+            sessionGroup.activities.forEach(activity => {
+                const appName = activity.appName || 'Unknown';
+                
+                if (!apps[appName]) {
+                    apps[appName] = {
+                        name: appName,
+                        activities: 0,
+                        startTime: new Date(activity.timestamp),
+                        endTime: new Date(activity.timestamp),
+                        typedText: '',
+                        pastedText: ''
+                    };
+                }
+                
+                apps[appName].activities++;
+                apps[appName].endTime = new Date(activity.timestamp);
+                
+                if (activity.type === 'paste') {
+                    apps[appName].pastedText += activity.text + ' ';
+                } else if (activity.type === 'keystroke') {
+                    const key = activity.key === 'SPACE' ? ' ' : 
+                               (activity.key && activity.key.length === 1 ? activity.key : '');
+                    if (key) apps[appName].typedText += key;
+                }
+            });
+            
+            return Object.values(apps).map(app => ({
+                ...app,
+                duration: formatDuration(app.endTime - app.startTime),
+                typedText: app.typedText.trim(),
+                pastedText: app.pastedText.trim()
+            })).sort((a, b) => b.activities - a.activities);
+        }
+
+        function openAppDashboard(selectedApp) {
+            const filteredData = allTrackingData.filter(activity => 
+                activity.sessionID === selectedApp.sessionID && 
+                activity.appName === selectedApp.appName
+            );
+
+            if (!filteredData || filteredData.length === 0) {
+                alert('No data available for this selection');
+                return;
+            }
+
+            if (!window.originalTrackingData) {
+                window.originalTrackingData = [...trackingData];
+            }
+            
+            trackingData = filteredData;
+            
+            const sessionStart = new Date(filteredData[0].timestamp);
+            const sessionEnd = new Date(filteredData[filteredData.length - 1].timestamp);
+            if (isNaN(sessionStart.getTime()) || isNaN(sessionEnd.getTime())) {
+                console.error('Invalid timestamps in filtered data');
+                return;
+            }
+            
+            updateDashboardHeader(selectedApp, sessionStart, sessionEnd);
+            updateDashboard();
+            addAppDashboardNavigation(selectedApp);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateDashboardHeader(selectedApp, sessionStart, sessionEnd) {
+            const header = document.querySelector('.header');
+            header.innerHTML = `
+                <div class="app-dashboard-header">
+                    <h1>📱 ${selectedApp.appName} Dashboard</h1>
+                    <div class="session-info-detailed">
+                        <div class="info-row">
+                            <div class="info-item">
+                                <span class="info-label">Session</span>
+                                <span class="info-value">${window.chartDrillState.parentSession.label}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Date</span>
+                                <span class="info-value">${sessionStart.toLocaleDateString()}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Time Range</span>
+                                <span class="info-value">${sessionStart.toLocaleTimeString()} - ${sessionEnd.toLocaleTimeString()}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Duration</span>
+                                <span class="info-value">${formatDuration(sessionEnd - sessionStart)}</span>
+                            </div>
+                        </div>
+                        <div class="content-preview">
+                            <div class="typed-preview">
+                                <strong>⌨️ Typed Content:</strong>
+                                <span>${selectedApp.typedText.substring(0, 100)}${selectedApp.typedText.length > 100 ? '...' : ''}</span>
+                            </div>
+                            <div class="pasted-preview">
+                                <strong>📋 Pasted Content:</strong>
+                                <span>${selectedApp.pastedText.substring(0, 100)}${selectedApp.pastedText.length > 100 ? '...' : ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addAppDashboardNavigation(selectedApp) {
+            const controls = document.querySelector('.controls');
+            const existingNav = document.getElementById('appDashboardNav');
+            if (existingNav) existingNav.remove();
+            
+            const navigation = document.createElement('div');
+            navigation.id = 'appDashboardNav';
+            navigation.className = 'app-dashboard-nav';
+            navigation.innerHTML = `
+                <button class="nav-btn back-to-apps" onclick="backToAppsView()">
+                    ← Back to Apps
+                </button>
+                <button class="nav-btn back-to-sessions" onclick="backToSessionsView()">
+                    ← Back to Sessions
+                </button>
+                <button class="nav-btn show-all" onclick="showAllSessions()">
+                    🏠 Show All Data
+                </button>
+                <div class="current-view">
+                    📍 Viewing: ${selectedApp.appName} in ${window.chartDrillState.parentSession.label}
+                </div>
+            `;
+            controls.appendChild(navigation);
+        }
+
+        function addChartBackButton() {
+            const chartContainer = document.getElementById('drillDownChart').parentElement;
+            const existingBtn = chartContainer.querySelector('.chart-back-btn');
+            if (existingBtn) existingBtn.remove();
+            
+            const backButton = document.createElement('button');
+            backButton.className = 'chart-back-btn';
+            backButton.innerHTML = '← Back to Sessions';
+            backButton.onclick = backToSessionsView;
+            
+            chartContainer.insertBefore(backButton, chartContainer.firstChild);
+        }
+
+        function removeChartBackButton() {
+            const chartContainer = document.getElementById('drillDownChart').parentElement;
+            const existingBtn = chartContainer.querySelector('.chart-back-btn');
+            if (existingBtn) existingBtn.remove();
+        }
+
+        function backToAppsView() {
+            if (window.chartDrillState && window.chartDrillState.parentSession) {
+                drillDownToApps(window.chartDrillState.parentSession);
+            }
+        }
+
+        function backToSessionsView() {
+            removeChartBackButton();
+            renderDrillDownSessionChart();
+            
+            const nav = document.getElementById('appDashboardNav');
+            if (nav) nav.remove();
+            
+            const header = document.querySelector('.header');
+            header.innerHTML = `
+                <h1>Activity Tracker Dashboard</h1>
+                <div class="session-info">
+                    <div class="info-item">
+                        <span class="info-label">Session Duration</span>
+                        <span class="info-value" id="sessionDuration">--:--:--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Keystrokes</span>
+                        <span class="info-value" id="totalKeystrokes">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Words Typed</span>
+                        <span class="info-value" id="wordsTyped">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Active Applications</span>
+                        <span class="info-value" id="activeApps">0</span>
+                    </div>
+                </div>
+            `;
+            updateDashboard(); // Restore main dashboard stats
+        }
+
+        function showAllSessions() {
+            if (window.originalTrackingData) {
+                trackingData = window.originalTrackingData;
+                delete window.originalTrackingData;
+            }
+            backToSessionsView();
+        }
+
+        function calculateSessionDuration(session) {
+            if (!session || !session.startTime || !session.endTime) return '0s';
+            const start = new Date(session.startTime);
+            const end = new Date(session.endTime);
+            return formatDuration(end - start);
+        }
+
+        function formatDuration(milliseconds) {
+            if (isNaN(milliseconds) || milliseconds < 0) return '0s';
+            const seconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        function getSessionColor(index) {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+            return colors[index % colors.length];
+        }
+
+        function lightenDarkenColor(col, amt) {
+            var usePound = false;
+            if (col[0] == "#") {
+                col = col.slice(1);
+                usePound = true;
+            }
+            var num = parseInt(col, 16);
+            var r = (num >> 16) + amt;
+            if (r > 255) r = 255;
+            else if (r < 0) r = 0;
+            var b = ((num >> 8) & 0x00FF) + amt;
+            if (b > 255) b = 255;
+            else if (b < 0) b = 0;
+            var g = (num & 0x0000FF) + amt;
+            if (g > 255) g = 255;
+            else if (g < 0) g = 0;
+            return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+        }
+
+        function adjustColorBrightness(color, amount) {
+            const usePound = color[0] === "#";
+            const col = usePound ? color.slice(1) : color;
+            const num = parseInt(col, 16);
+            let r = (num >> 16) + amount;
+            let g = ((num >> 8) & 0x00FF) + amount;
+            let b = (num & 0x0000FF) + amount;
+            r = Math.max(0, Math.min(255, r));
+            g = Math.max(0, Math.min(255, g));
+            b = Math.max(0, Math.min(255, b));
+            return (usePound ? "#" : "") + (b | (g << 8) | (r << 16)).toString(16).padStart(6, '0');
+        }
+
+        // --- HELPER & INITIALIZATION FUNCTIONS ---
+        function groupDataBySession() {
+            const sessions = {};
+            trackingData.forEach(activity => {
+                if (!sessions[activity.sessionID]) {
+                    sessions[activity.sessionID] = {
+                        activities: [],
+                        startTime: activity.timestamp,
+                        endTime: activity.timestamp
+                    };
+                }
+                sessions[activity.sessionID].activities.push(activity);
+                if (new Date(activity.timestamp) > new Date(sessions[activity.sessionID].endTime)) {
+                    sessions[activity.sessionID].endTime = activity.timestamp;
+                }
+            });
+            return sessions;
+        }
+
+        function updateDashboard() {
+            // This function updates the main dashboard stats based on the current `trackingData`
+            if (!trackingData || trackingData.length === 0) return;
+
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke').length;
+            const typedText = trackingData.filter(d => d.type === 'keystroke').map(d => d.key).join('');
+            const words = typedText.split(/\s+/).filter(Boolean).length;
+            const apps = new Set(trackingData.map(d => d.appName)).size;
+            
+            const startTime = new Date(trackingData[0].timestamp);
+            const endTime = new Date(trackingData[trackingData.length - 1].timestamp);
+            const duration = formatDuration(endTime - startTime);
+
+            document.getElementById('sessionDuration').textContent = duration;
+            document.getElementById('totalKeystrokes').textContent = keystrokes;
+            document.getElementById('wordsTyped').textContent = words;
+            document.getElementById('activeApps').textContent = apps;
+        }
+        
+        // --- INITIALIZE DASHBOARD ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (validateTrackingData()) {
+                renderDrillDownSessionChart();
+                updateDashboard();
+            } else {
+                document.querySelector('.header h1').textContent = 'No Tracking Data Found';
+            }
+        });
+
+    </script>
+</body>
+</html>

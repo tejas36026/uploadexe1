@@ -1,0 +1,43 @@
+{
+  "name": "activity-tracker",
+  "version": "1.1.0",
+  "description": "Comprehensive keystroke and activity tracking application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "author": "Activity Tracker Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "electron-log": "^5.4.2",
+    "electron-updater": "^6.6.2",
+    "node-global-key-listener": "^0.1.1"
+  },
+  "build": {
+    "appId": "com.activitytracker.app",
+    "productName": "Activity Tracker",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "dashboard.html",
+      "controls.html",
+      "*.min.js"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "tejas36026",
+      "repo": "uploadexe1"
+    },
+    "win": {
+      "target": "nsis-web"
+    }
+  }
+}

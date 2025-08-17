@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Handwriting Report</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+    
+    body {
+      font-family: 'Caveat', cursive;
+      font-size: 22px;
+      line-height: 1.6;
+      background: #f9f4e8;
+      color: #333;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+      background-image: linear-gradient(#e4e4e4 1px, transparent 1px);
+      background-size: 100% 32px;
+    }
+    
+    .session {
+      margin-bottom: 40px;
+      border-bottom: 1px dashed #ccc;
+      padding-bottom: 20px;
+    }
+    
+    .session-header {
+      margin-bottom: 15px;
+      font-weight: bold;
+      font-size: 1.3em;
+    }
+    
+    .paragraph {
+      margin-bottom: 25px;
+      text-align: justify;
+    }
+    
+    .typed {
+      color: #d4a017; /* Yellow-brown for handwritten look */
+    }
+    
+    .pasted {
+      color: #c33;
+      text-decoration: underline;
+    }
+    
+    .session-meta {
+      font-size: 0.8em;
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .timestamp {
+      position: absolute;
+      right: 20px;
+      color: #999;
+      font-size: 0.7em;
+    }
+    
+    [data-tooltip] {
+      position: relative;
+      cursor: help;
+    }
+    
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 16px;
+      white-space: nowrap;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center">My Digital Handwriting Report</h1>
+  <div id="report-content"></div>
+
+  <script>
+    async function generateReport() {
+      const sessions = await window.electronAPI.getReportData();
+      const reportEl = document.getElementById('report-content');
+      
+      sessions.forEach(session => {
+        const sessionEl = document.createElement('div');
+        sessionEl.className = 'session';
+        
+        const headerEl = document.createElement('div');
+        headerEl.className = 'session-header';
+        headerEl.textContent = session.title || 'Untitled Document';
+        headerEl.setAttribute('data-tooltip', session.url || 'No URL');
+        
+        const metaEl = document.createElement('div');
+        metaEl.className = 'session-meta';
+        metaEl.textContent = `Started: ${new Date(session.startTime).toLocaleString()}`;
+        
+        sessionEl.appendChild(headerEl);
+        sessionEl.appendChild(metaEl);
+        
+        session.paragraphs.forEach(paragraph => {
+          const paraEl = document.createElement('div');
+          paraEl.className = 'paragraph';
+          
+          const textEl = document.createElement('span');
+          textEl.className = paragraph.containsPaste ? 'pasted' : 'typed';
+          textEl.textContent = paragraph.text;
+          
+          const speedEl = document.createElement('span');
+          speedEl.className = 'timestamp';
+          speedEl.textContent = `${paragraph.typingSpeed.toFixed(1)} chars/sec`;
+          
+          paraEl.appendChild(textEl);
+          paraEl.appendChild(speedEl);
+          sessionEl.appendChild(paraEl);
+        });
+        
+        reportEl.appendChild(sessionEl);
+      });
+    }
+    
+    generateReport();
+  </script>
+</body>
+</html>

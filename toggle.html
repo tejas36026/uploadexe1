@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toggle Visibility</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px 0 rgba(231, 76, 60, 0.5);
+            color: white;
+            text-align: center;
+        }
+
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .warning {
+            font-size: 12px;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <h2>Activity Tracker Controls</h2>
+    <p>The main tracker is running in invisible mode.</p>
+    
+    <button class="btn" onclick="showControls()">Show Controls</button>
+    <button class="btn" onclick="showDashboard()">Show Dashboard</button>
+    <button class="btn" onclick="closeApp()">Exit</button>
+    
+    <div class="warning">
+        Use Ctrl+Shift+Alt+V to toggle this window
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        async function showControls() {
+            try {
+                await ipcRenderer.invoke('toggle-main-visibility');
+                // Close this toggle window
+                window.close();
+            } catch (error) {
+                console.error('Error toggling visibility:', error);
+            }
+        }
+        
+        async function showDashboard() {
+            try {
+                // Send message to main app to show dashboard
+                await ipcRenderer.invoke('show-dashboard');
+            } catch (error) {
+                console.error('Error showing dashboard:', error);
+            }
+        }
+        
+        function closeApp() {
+            window.close();
+        }
+        
+        // Make window draggable
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                require('electron').ipcRenderer.send('start-drag');
+            }
+        });
+    </script>
+</body>
+</html>

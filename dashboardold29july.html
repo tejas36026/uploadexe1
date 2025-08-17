@@ -1,0 +1,3039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Tracker Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+   
+    <link rel="stylesheet" href="styles.css">
+   
+</head>
+<body>
+    <div class="dashboard">
+        <div class="controls" style="display: none;">
+     
+        </div>
+        <div class="dashboard-controls">
+            <div class="control-group">
+                <label>From:</label>    
+                <input type="date" id="startDateFilter">
+                <label>To:</label>
+                <input type="date" id="endDateFilter">
+            </div>
+            <div class="control-group">
+                <label>Sort by:</label>
+                <select id="sortSessions">
+                    <option value="recent">Most Recent</option>
+                    <option value="duration">Duration</option>
+                    <option value="activity">Activity Count</option>
+                </select>
+            </div>
+            <button class="btn" id="filterBtn">Apply Filters</button>
+            <button class="btn" id="viewAllBtn">View All Sessions</button>
+            <button class="btn" onclick="generatePDF()" style="background: #8e44ad;">📄 Download Report</button>
+            <button class="btn" id="settingsBtn">⚙️ Include/Exclude</button>
+            <button class="btn" id="deleteAllBtn" style="background: #c0392b;">🗑️ Delete All</button>
+        </div>
+        <div id="session-list"></div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="avgWPM">0</div>
+                <div class="stat-label">Avg WPM</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pasteCount">0</div>
+                <div class="stat-label">Paste Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="mouseClicks">0</div>
+                <div class="stat-label">Mouse Clicks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="backspaceCount">0</div>
+                <div class="stat-label">Corrections</div>
+            </div>
+        </div>
+        <div class="header">
+
+            <h1>Activity Tracker Dashboard</h1>
+            <div class="session-info">
+                <div class="info-item">
+                    <span class="info-label">Session Duration</span>
+                    <span class="info-value" id="sessionDuration">--:--:--</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Keystrokes</span>
+                    <span class="info-value" id="totalKeystrokes">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Words Typed</span>
+                    <span class="info-value" id="wordsTyped">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Active Applications</span>
+                    <span class="info-value" id="activeApps">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="chart-container">
+            <h3 class="chart-title">Per Sentence Summary</h3>
+            <canvas id="sentenceSummaryChart" class="chart-canvas"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-title">Activity Timeline</h3>
+            <canvas id="timelineChart" class="chart-canvas"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h3 class="chart-title">Productivity Metrics</h3>
+            <canvas id="productivityChart" class="chart-canvas"></canvas>
+        </div>
+        
+        <div id="sessions-container"></div>
+     
+        <div id="content-container">
+            <h3>Select a session to view content</h3>
+            <div id="session-content"></div>
+        </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Activity Over Time</h3>
+                <canvas id="activityChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Application Usage</h3>
+                <canvas id="appChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Keystroke Distribution</h3>
+                <canvas id="keystrokeChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Mouse Movement Heatmap</h3>
+                <canvas id="mouseChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="typing-rhythm">
+            <h3>Typing Rhythm Pattern</h3>
+            <canvas id="rhythmCanvas" class="rhythm-canvas"></canvas>
+        </div>
+
+        <div class="text-analysis">
+            <h3>Text Analysis & Classification</h3>
+            <div id="textContent"></div>
+        </div>
+
+        <div class="activity-log">
+            <h3>Activity Log</h3>
+            <div class="activity-filters">
+                <button class="filter-btn active" onclick="filterActivities('all')">All</button>
+                <button class="filter-btn" onclick="filterActivities('keystroke')">Keystrokes</button>
+                <button class="filter-btn" onclick="filterActivities('mouse')">Mouse</button>
+                <button class="filter-btn" onclick="filterActivities('paste')">Paste</button>
+            </div>
+            <div id="activityList"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const ChartManager = { charts: {}, destroyChart: function(chartKey) { if (this.charts[chartKey]) { this.charts[chartKey].destroy(); delete this.charts[chartKey]; } }, cleanCanvas: function(canvasId) { const canvas = document.getElementById(canvasId); if (canvas) { const newCanvas = canvas.cloneNode(true); canvas.parentNode.replaceChild(newCanvas, canvas); return newCanvas.getContext('2d'); } return null; } };
+        const { ipcRenderer } = require('electron');
+        function debugSessions() {
+    console.log('=== SESSION DEBUG ===');
+    console.log('Total activities:', allTrackingData.length);
+    
+    const sessions = groupDataBySession();
+    console.log('Sessions found:', Object.keys(sessions).length);
+    
+    Object.entries(sessions).forEach(([sessionId, session]) => {
+        console.log(`${sessionId}:`, {
+            activities: session.activities.length,
+            start: new Date(session.startTime).toLocaleString(),
+            end: new Date(session.endTime).toLocaleString(),
+            firstActivitySessionID: session.activities[0]?.sessionID,
+            lastActivitySessionID: session.activities[session.activities.length-1]?.sessionID
+        });
+    });
+    
+
+    const ChartManager = {
+    charts: {},
+    
+    // Safely destroy a chart
+    destroyChart: function(chartKey) {
+        if (this.charts[chartKey]) {
+            try {
+                const chart = this.charts[chartKey];
+                if (chart.canvas) {
+                    chart.canvas.style.cursor = 'default';
+                }
+                
+                // Destroy the chart
+                chart.destroy();
+                this.charts[chartKey] = null;
+                delete this.charts[chartKey];
+                
+                // Force garbage collection hint
+                if (window.gc) window.gc();
+                
+            } catch (error) {
+                console.error('Error destroying chart:', error);
+                this.charts[chartKey] = null;
+                delete this.charts[chartKey];
+            }
+        }
+    },
+    
+    // Clean canvas element
+    cleanCanvas: function(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (canvas) {
+            // Remove all event listeners
+            const newCanvas = canvas.cloneNode(true);
+            canvas.parentNode.replaceChild(newCanvas, canvas);
+            return newCanvas.getContext('2d');
+        }
+        return null;
+    }
+};
+
+
+    // Check for sessionID inconsistencies
+    const uniqueSessionIDs = [...new Set(allTrackingData.map(a => a.sessionID))];
+    console.log('Unique sessionIDs in data:', uniqueSessionIDs);
+}
+        document.addEventListener('DOMContentLoaded', loadSessionList);
+        ipcRenderer.on('new-session-saved', loadSessionList);
+
+        async function loadSessionList(limit = null) {
+    let sessions = await ipcRenderer.invoke('get-all-sessions');
+    const startDate = document.getElementById('startDateFilter').value;
+    const endDate = document.getElementById('endDateFilter').value;
+    const sortBy = document.getElementById('sortSessions').value;
+    if (startDate) sessions = sessions.filter(s => new Date(s.startTime) >= new Date(startDate));
+    if (endDate) sessions = sessions.filter(s => new Date(s.startTime) <= new Date(endDate + 'T23:59:59'));
+    if (sortBy === 'duration') sessions.sort((a, b) => b.duration - a.duration);
+    else if (sortBy === 'activity') sessions.sort((a, b) => b.totalActivities - a.totalActivities);
+    if (limit) sessions = sessions.slice(0, limit);
+    const listElement = document.getElementById('session-list');
+
+    // Add show all sessions button
+    if (!document.getElementById('showAllSessionsBtn')) {
+        const showAllBtn = document.createElement('button');
+        showAllBtn.id = 'showAllSessionsBtn';
+        showAllBtn.className = 'show-all-sessions';
+        showAllBtn.textContent = '📋 Show All Sessions';
+        showAllBtn.onclick = showAllSessions;
+        listElement.parentNode.insertBefore(showAllBtn, listElement);
+    }
+    
+    listElement.innerHTML = '';
+
+    if (sessions.length === 0) {
+        listElement.innerHTML = '<div class="no-sessions">No sessions recorded yet. Click Start to begin tracking.</div>';
+        return;
+    }
+
+    sessions.forEach((session, index) => {
+        const sessionDiv = document.createElement('div');
+        sessionDiv.className = 'session-item';
+        sessionDiv.dataset.sessionId = session.id;
+
+        const startTime = new Date(session.startTime);
+        const endTime = session.endTime ? new Date(session.endTime) : null;
+        const duration = session.duration ? formatDuration(session.duration) : 'Ongoing';
+        const dateString = startTime.toLocaleDateString([], { year: '2-digit', month: '2-digit', day: '2-digit' });
+
+        const totalActivities = session.totalActivities || 0;
+        
+        const apps = session.apps ? Object.keys(session.apps) : [];
+        const appsDisplay = apps.length > 0 ? apps.slice(0, 2).join(', ') + (apps.length > 2 ? ` +${apps.length - 2}` : '') : 'No apps';
+
+        const statusIcon = endTime ? '✅' : '🔄';
+        const statusText = endTime ? 'COMPLETED' : 'ACTIVE';
+
+        sessionDiv.innerHTML = `
+            <button class="session-close-btn" onclick="closeSession(event, '${session.id}')">✕</button>
+            <div class="session-header">
+                <div class="session-title">
+                    ${statusIcon} <strong>Session #${session.sessionNumber || index + 1}</strong>
+                    <span class="session-status">${statusText}</span>
+                </div>
+                <div class="session-times">
+                    <div class="session-date">${dateString}</div>
+                    <div class="start-time">🕐 ${startTime.toLocaleTimeString()}</div>
+                    ${endTime ? `<div class="end-time">🏁 ${endTime.toLocaleTimeString()}</div>` : '<div class="end-time">⏳ Running</div>'}
+                </div>
+            </div>
+            
+            <!-- Compact summary for collapsed view -->
+            <div class="session-summary">
+                <div class="session-summary-item">
+                    ⏱️ <span>${duration}</span>
+                </div>
+                <div class="session-summary-item">
+                    📊 <span>${totalActivities}</span>
+                </div>
+                <div class="session-summary-item">
+                    📱 <span>${apps.length}</span>
+                </div>
+            </div>
+            
+            <!-- Detailed view for expanded -->
+            <div class="session-stats">
+                <span class="duration">⏱️ ${duration}</span>
+                <span class="activities">📊 ${totalActivities} activities</span>
+                <span class="apps-count">📱 ${apps.length} apps</span>
+            </div>
+            <div class="session-apps">
+                <strong>Apps:</strong> ${appsDisplay}
+            </div>
+            <div class="session-context">
+                <strong>Primary:</strong> ${session.mainContext?.appName || 'Unknown'} - ${session.mainContext?.windowTitle || 'Unknown'}
+            </div>
+        `;
+
+        sessionDiv.addEventListener('click', (e) => { if (e.target.classList.contains('session-close-btn')) return; sessionDiv.classList.contains('expanded') ? showAllSessions() : expandSession(sessionDiv, session); });
+
+
+        listElement.appendChild(sessionDiv);
+    });
+}
+
+function expandSession(sessionDiv, session) {
+    const allSessions = document.querySelectorAll('.session-item');
+    let foundClickedSession = false;
+
+    allSessions.forEach(item => {
+        // Reset the state of the item first
+        item.classList.remove('expanded', 'active', 'collapsed');
+
+        if (item === sessionDiv) {
+            // This is the one we clicked. Expand it.
+            item.classList.add('expanded', 'active');
+            foundClickedSession = true;
+        } else if (foundClickedSession) {
+            // If we are past the clicked session, hide this item.
+            item.classList.add('collapsed');
+        }
+        // If we haven't found the clicked session yet, do nothing (leave it visible).
+    });
+
+    // Load the detailed data for the expanded session
+    displaySessionWithApps(session.id, session.sessionNumber);
+    
+    // Scroll smoothly to the top of the expanded session so you can see its content
+    sessionDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+
+function closeSession(event, sessionId) {
+    event.stopPropagation();
+    // Reloading the list is the cleanest way to reset the view to its default state.
+    loadSessionList(); 
+}
+
+
+
+async function displaySessionWithApps(sessionId, sessionNumber) {
+    try {
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            console.error('Session not found');
+            return;
+        }
+        
+        // Update dashboard header with session number
+        const headerTitle = document.querySelector('.header h1');
+        const startTime = new Date(sessionData.startTime);
+        const endTime = sessionData.endTime ? new Date(sessionData.endTime) : null;
+        
+        headerTitle.innerHTML = `
+            <div>📋 Session #${sessionNumber || sessionData.sessionNumber || 'Unknown'}</div>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">
+                🕐 ${startTime.toLocaleString()} ${endTime ? `→ ${endTime.toLocaleString()}` : '(Still Active)'} | 
+                ⏱️ ${formatDuration(sessionData.duration)} | 
+                📊 ${sessionData.totalActivities} activities | 
+                📱 ${Object.keys(sessionData.apps || {}).length} apps
+            </div>
+        `;
+        
+        // Display apps breakdown for this session
+        displaySessionApps(sessionData, sessionNumber);
+        
+        // Update global tracking data with session data
+        if (!window.originalTrackingData) {
+            window.originalTrackingData = [...allTrackingData];
+        }
+        
+        trackingData = sessionData.activities;
+        allTrackingData = sessionData.activities;
+        
+        updateDashboard();
+        addBackToAllSessionsButton();
+        
+    } catch (error) {
+        console.error('Error displaying session:', error);
+    }
+}
+function displaySessionApps(sessionData, sessionNumber) {
+    const appsContainer = document.getElementById('session-apps-container') || createAppsContainer();
+    appsContainer.innerHTML = `<h3>📱 Applications Used in Session #${sessionNumber || sessionData.sessionNumber || 'Unknown'}</h3>`;
+    
+    const apps = sessionData.apps || {};
+    
+    if (Object.keys(apps).length === 0) {
+        appsContainer.innerHTML += '<div class="no-apps">No application data available for this session.</div>';
+        return;
+    }
+    
+    const sortedApps = Object.values(apps).sort((a, b) => b.totalActivities - a.totalActivities);
+    
+    sortedApps.forEach((app, index) => {
+        const appDiv = document.createElement('div');
+        appDiv.className = 'app-item';
+        
+        const firstActivity = app.activities[0];
+        const lastActivity = app.activities[app.activities.length - 1];
+        const appDuration = new Date(lastActivity.timestamp) - new Date(firstActivity.timestamp);
+        
+        // Add ranking
+        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+        
+        appDiv.innerHTML = `
+            <div class="app-header">
+                <div class="app-name">${rankIcon} 📱 ${app.name}</div>
+                <div class="app-stats">
+                    <span class="app-activities">📊 ${app.totalActivities} activities</span>
+                    <span class="app-duration">⏱️ ${formatDuration(appDuration)}</span>
+                </div>
+            </div>
+            <div class="app-details">
+                <div class="app-timestamp"> 🕐 First seen: ${new Date(firstActivity.timestamp).toLocaleTimeString()}</div>
+                <div class="app-timestamp">🏁 Last seen: ${new Date(lastActivity.timestamp).toLocaleTimeString()}</div>
+                <div>🪟 Window: ${firstActivity.windowTitle || 'Unknown'}</div>
+                ${firstActivity.url && firstActivity.url !== 'N/A' ? `<div>🔗 URL: ${firstActivity.url}</div>` : ''}
+            </div>
+        `;
+        
+        appDiv.addEventListener('click', () => {
+            filterByApp(sessionData.sessionID, app.name, sessionNumber);
+        });
+        
+        appsContainer.appendChild(appDiv);
+    });
+}
+
+
+function createAppsContainer() {
+    const container = document.createElement('div');
+    container.id = 'session-apps-container';
+    container.className = 'session-apps-container';
+    container.style.cssText = `
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    `;
+    
+    const dashboard = document.querySelector('.dashboard');
+    const statsGrid = document.querySelector('.stats-grid');
+    dashboard.insertBefore(container, statsGrid);
+    
+    return container;
+}
+function filterByApp(sessionID, appName, sessionNumber) {
+    const sessionApps = allTrackingData.filter(activity => 
+        activity.sessionID === sessionID && activity.appName === appName
+    );
+    
+    trackingData = sessionApps;
+    updateDashboard();
+    
+    // Update header with session number
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.innerHTML = `
+        <div>📱 ${appName} in Session #${sessionNumber}</div>
+        <div style="font-size: 14px; color: #666; margin-top: 5px;">
+            📋 Session ID: ${sessionID} | 📊 Activities: ${sessionApps.length}
+        </div>
+    `;
+}
+
+
+
+async function displaySession(sessionId) {
+    try {
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            console.error('Session not found');
+            return;
+        }
+        
+        // Store original data for restoration
+        if (!window.originalTrackingData) {
+            window.originalTrackingData = [...allTrackingData];
+        }
+        
+        // Update global tracking data with session data
+        trackingData = sessionData.activities;
+        allTrackingData = sessionData.activities;
+        
+        // Update the entire dashboard with session data
+        updateDashboard();
+        
+        // Update header to show session info
+        const headerTitle = document.querySelector('.header h1');
+        headerTitle.textContent = `Session: ${new Date(sessionData.startTime).toLocaleString()}`;
+        
+        // Add back button
+        addBackToAllSessionsButton();
+        
+    } catch (error) {
+        console.error('Error displaying session:', error);
+    }
+}
+        
+function addBackToAllSessionsButton() {
+    const existingBtn = document.getElementById('backToAllBtn');
+    if (existingBtn) existingBtn.remove();
+    
+    const backBtn = document.createElement('button');
+    backBtn.id = 'backToAllBtn';
+    backBtn.className = 'btn btn-primary';
+    backBtn.textContent = 'Back to All Sessions';
+    backBtn.onclick = () => {
+        if (window.originalTrackingData) {
+            allTrackingData = window.originalTrackingData;
+            trackingData = window.originalTrackingData;
+            delete window.originalTrackingData;
+        }
+        updateDashboard();
+        document.querySelector('.header h1').textContent = 'Activity Tracker Dashboard';
+        backBtn.remove();
+        
+        // Remove active state from session buttons
+        document.querySelectorAll('.session-btn.active').forEach(b => b.classList.remove('active'));
+    };
+    
+    document.querySelector('.controls').appendChild(backBtn);
+}
+
+
+
+
+        let trackingData = [];        
+        let allTrackingData = [];
+        let sessionData = null;
+        let charts = {};
+        let currentFilter = 'all';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            allTrackingData = await ipcRenderer.invoke('get-tracking-data');
+
+            setupEventListeners();
+            debugSessions(); // Add this line
+            loadSessionList(10); 
+
+const viewAllBtn = document.getElementById('viewAllBtn');
+viewAllBtn.addEventListener('click', () => {
+    if (viewAllBtn.textContent === 'View All Sessions') {
+        loadSessionList(); // Load all
+        viewAllBtn.textContent = 'View Last 10';
+    } else {
+        loadSessionList(10); // Load limited
+        viewAllBtn.textContent = 'View All Sessions';
+    }
+});
+
+document.getElementById('filterBtn').addEventListener('click', () => {
+    loadSessionList(); // Re-load sessions applying filters
+    viewAllBtn.textContent = 'View Last 10';
+});
+
+document.getElementById('deleteAllBtn').addEventListener('click', () => {
+    if (confirm('Are you sure you want to delete ALL sessions? This cannot be undone.')) {
+        ipcRenderer.invoke('delete-all-sessions');
+    }
+});
+
+
+
+        });
+        ipcRenderer.on('session-stopped', (event, data) => {
+            allTrackingData = data;
+            updateDashboard();
+        });
+
+
+        function setupEventListeners() {
+            let dashboardUpdateTimeout = null;
+ipcRenderer.on('activity-update', (event, activity) => {
+    trackingData.push(activity);
+    if (activity.type === 'mouse') return; // <<< ADD THIS LINE
+
+    // Throttle UI updates to prevent hanging
+    if (!dashboardUpdateTimeout) {
+        dashboardUpdateTimeout = setTimeout(() => {
+            updateDashboard();
+            dashboardUpdateTimeout = null;
+        }, 250); // Update at most 4 times per second
+    }
+});
+
+
+
+            ipcRenderer.on('generate-report', (event, data) => {
+    sessionData = data;
+    updateDashboard();
+    // Signal to main process that the dashboard has updated and is ready
+    ipcRenderer.send('report-ready-for-pdf'); 
+});
+
+// Create a new listener that ONLY handles the PDF creation
+ipcRenderer.on('trigger-pdf-generation', () => {
+    generatePDF();
+});
+        }
+
+        async function loadTrackingData() {
+            try {
+                trackingData = await ipcRenderer.invoke('get-tracking-data');
+                updateDashboard();
+            } catch (error) {
+                console.error('Error loading tracking data:', error);
+            }
+        }
+
+        function updateDashboard() {
+            // console.log('validateTrackingData :>> ', validateTrackingData);
+
+            // renderEnhancedSessionChart();
+            updateStats();
+            // renderDrillDownSessionChart(); // Add this line
+
+            updateCharts();
+            updateActivityLog();
+            updateTextAnalysis();
+            updateTypingRhythm();
+            renderSessions();
+            updateSentenceSummaryChart(); // Add this
+    updateTimelineChart(); // Add this
+    updateProductivityChart(); // Add this
+
+// renderAppUsageChart();
+
+
+trackingData = allTrackingData || []; // Load all session data into trackingData
+
+
+        }
+
+        function renderDrillDownSessionChart() {
+            ChartManager.destroyChart('drillDownChart');
+
+            const ctx = ChartManager.cleanCanvas('drillDownChart');
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
+
+    
+
+
+    const sessionGroups = groupDataBySession();
+    const sessionData = [];
+    
+    if (!sessionGroups || Object.keys(sessionGroups).length === 0) {
+        console.log('No session data available');
+        return;
+    }
+
+    // Initialize with session-level view  
+    let sessionIndex = 1;
+
+    // FIXED: Remove duplicate loop - you had the same loop twice
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+    if (sessionData.length === 0) {
+        console.log('No valid sessions found');
+        return;
+    }
+
+    // Store chart state before creating chart
+    window.chartDrillState = {
+        level: 'session',
+        data: sessionData,
+        sessionGroups: sessionGroups
+    };
+
+    // Create chart with improved error handling
+    try {
+        charts.drillDownChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sessionData.map(s => s.label),
+                datasets: [{
+                    data: sessionData.map(s => s.value),
+                    backgroundColor: sessionData.map(s => s.color),
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 5,
+                    hoverOffset: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '📊 Sessions Overview - Click to Drill Down',
+                        font: { size: 18, weight: 'bold' },
+                        color: '#2c3e50'
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 14 }  
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 10,
+                        padding: 15,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                if (!tooltipItems || tooltipItems.length === 0) return '';
+                                const item = tooltipItems[0];
+                                const session = sessionData[item.dataIndex];
+                                return session ? `🗂️ ${session.label}` : 'Unknown Session';
+                            },
+                            label: function(context) {
+                                if (!context || typeof context.dataIndex === 'undefined') return '';
+                                const session = sessionData[context.dataIndex];
+                                if (!session) return '';
+                                
+                                return [
+                                    `📊 Activities: ${session.value}`,
+                                    `⏱️ Duration: ${session.duration}`,
+                                    `🖱️ Click to view apps breakdown`
+                                ];
+                            }
+                        }
+                    }
+                },
+                
+                // Improved onClick handler with better error handling
+                onClick: function(event, activeElements) {
+                    // Prevent default event handling that might cause conflicts
+                    if (event && event.native) {
+                        event.native.preventDefault();
+                    }
+                    
+                    try {
+                        if (activeElements && activeElements.length > 0) {
+                            const elementIndex = activeElements[0].index;
+                            
+                            // Validate index bounds
+                            if (elementIndex >= 0 && elementIndex < sessionData.length) {
+                                const selectedSession = sessionData[elementIndex];
+                                
+                                if (selectedSession && selectedSession.sessionID) {
+                                    // Add a small delay to prevent event conflicts
+                                    setTimeout(() => {
+                                        drillDownToApps(selectedSession);
+                                    }, 100);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Chart click error:', error);
+                    }
+                },
+                // Improved onHover handler
+                onHover: function(event, activeElements) {
+                    try {
+                        const canvas = event.native?.target || ctx.canvas;
+                        if (canvas) {
+                            canvas.style.cursor = 
+                                (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                        }
+                    } catch (error) {
+                        console.error('Chart hover error:', error);
+                    }
+                }
+            }
+        });
+
+        // Additional safety check
+        if (!charts.drillDownChart) {
+            console.error('Failed to create chart instance');
+            return;
+        }
+
+    } catch (error) {
+        console.error('Error creating chart:', error);
+        // Clean up on error
+        if (charts.drillDownChart) {
+            charts.drillDownChart.destroy();
+            charts.drillDownChart = null;
+        }
+    }
+}
+        
+   
+        
+
+
+
+
+function lightenDarkenColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+    }
+    var num = parseInt(col, 16);
+    var r = (num >> 16) + amt;
+    var g = (num >> 8 & 0x00FF) + amt;
+    var b = (num & 0x0000FF) + amt;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + (r << 16 | g << 8 | b).toString(16);
+}
+
+// Enhanced session analysis view
+function showSessionAnalysis(session) {
+    const sessionGroups = groupDataBySession();
+    const targetSession = sessionGroups[session.sessionID];
+    
+    // Create detailed analysis popup or section
+    createAnalysisModal({
+        type: 'session',
+        title: `📊 Session ${session.sessionIndex + 1} Analysis`,
+        data: targetSession,
+        session: session
+    });
+}
+
+
+
+// Create analysis modal/section
+function createAnalysisModal(config) {
+    // Remove existing modal
+    const existingModal = document.getElementById('analysisModal');
+    if (existingModal) existingModal.remove();
+    
+    // Create new modal
+    const modal = document.createElement('div');
+    modal.id = 'analysisModal';
+    modal.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: white; padding: 30px; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        max-width: 800px; max-height: 80vh; overflow-y: auto; z-index: 1000;
+        border: 3px solid ${config.session?.color || config.app?.color || '#4ECDC4'};
+    `;
+    
+    const activities = config.data.activities;
+    const startTime = new Date(activities[0]?.timestamp || config.data.startTime);
+    const endTime = new Date(activities[activities.length - 1]?.timestamp || Date.now());
+    const duration = Math.round((endTime - startTime) / 60000); // minutes
+    
+    modal.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #333; margin: 0;">${config.title}</h2>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; font-size: 16px;">✕</button>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #3498db;">${activities.length}</div>
+                <div style="color: #666;">Total Activities</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${duration}m</div>
+                <div style="color: #666;">Duration</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${startTime.toLocaleTimeString()}</div>
+                <div style="color: #666;">Started</div>
+            </div>
+        </div>
+        
+        <div style="max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            ${activities.slice(0, 50).map(activity => `
+                <div style="background: white; margin-bottom: 8px; padding: 10px; border-radius: 5px; border-left: 4px solid ${activity.type === 'paste' ? '#e74c3c' : '#27ae60'};">
+                    <strong>${activity.type === 'paste' ? '📋 Paste' : '⌨️ Type'}:</strong> 
+                    ${activity.type === 'paste' ? activity.text?.substring(0, 100) + '...' : activity.key || 'Key'}
+                    <br><small style="color: #666;">📱 ${activity.appName} - 🕐 ${new Date(activity.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `).join('')}
+        </div>
+        
+        <button onclick="filterAndDisplayReport('${config.session?.sessionID || config.app?.sessionID}', '${config.app?.appName || ''}')" 
+                style="background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin-top: 15px; width: 100%;">
+            📊 Show Full Dashboard for This ${config.type === 'session' ? 'Session' : 'App'}
+        </button>
+    `;
+    
+    // Add backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;';
+    backdrop.onclick = () => { modal.remove(); backdrop.remove(); };
+    
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+}
+
+
+
+function filterAndDisplayReport(sessionID, appName = '') {
+    // Close any open modals
+    const modal = document.getElementById('analysisModal');
+    if (modal) modal.remove();
+    
+    const sessionGroups = groupDataBySession();
+    const targetSession = sessionGroups[sessionID];
+    
+    if (!targetSession) {
+        console.error(`Session ${sessionID} not found`);
+        return;
+    }
+    
+    let filteredActivities = targetSession.activities;
+    
+    if (appName && appName !== 'undefined') {
+        filteredActivities = targetSession.activities.filter(activity => 
+            activity.appName === appName
+        );
+    }
+    
+    // Store original data
+    if (!window.originalTrackingData) {
+        window.originalTrackingData = [...trackingData];
+    }
+    
+    // Update tracking data
+    trackingData = filteredActivities;
+    
+    // Update dashboard
+    updateDashboard();
+    
+    // Update header with better styling
+    const headerInfo = document.querySelector('.header h1');
+    const sessionStartTime = new Date(targetSession.startTime).toLocaleString();
+    
+    if (appName && appName !== 'undefined') {
+        headerInfo.innerHTML = `📱 ${appName} Analysis<br><small style="font-size: 16px; color: #7f8c8d;">Session: ${sessionStartTime}</small>`;
+    } else {
+        headerInfo.innerHTML = `🗂️ Session Analysis<br><small style="font-size: 16px; color: #7f8c8d;">${sessionStartTime}</small>`;
+    }
+    
+    // Add enhanced return button
+    addEnhancedReturnButton();
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Enhanced return button
+function addEnhancedReturnButton() {
+    const existingButton = document.getElementById('showAllSessionsBtn');
+    if (existingButton) existingButton.remove();
+    
+    const button = document.createElement('button');
+    button.id = 'showAllSessionsBtn';
+    button.innerHTML = '🔙 Show All Sessions';
+    button.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white; border: none; padding: 12px 24px; border-radius: 25px;
+        cursor: pointer; margin-left: 15px; font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease;
+    `;
+    
+    button.onmouseover = () => button.style.transform = 'translateY(-2px)';
+    button.onmouseout = () => button.style.transform = 'translateY(0)';
+    
+    button.onclick = () => {
+        if (window.originalTrackingData) {
+            trackingData = window.originalTrackingData;
+            delete window.originalTrackingData;
+        }
+        updateDashboard();
+        document.querySelector('.header h1').textContent = 'Activity Tracker Dashboard';
+        button.remove();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    
+    document.querySelector('.controls').appendChild(button);
+}
+
+
+
+
+function groupDataBySession() {
+    if (!allTrackingData || allTrackingData.length === 0) {
+        return {};
+    }
+
+    // Group by explicit sessionID (from start/stop actions)
+    const sessionGroups = {};
+    
+    allTrackingData.forEach(activity => {
+        const activitySessionID = activity.sessionID;
+        
+        if (!activitySessionID) return; // Skip activities without sessionID
+        
+        if (!sessionGroups[activitySessionID]) {
+            sessionGroups[activitySessionID] = {
+                sessionID: activitySessionID,
+                activities: [],
+                startTime: activity.timestamp,
+                endTime: activity.timestamp,
+                apps: {}
+            };
+        }
+        
+        sessionGroups[activitySessionID].activities.push(activity);
+        
+        // Update session time bounds
+        if (new Date(activity.timestamp) < new Date(sessionGroups[activitySessionID].startTime)) {
+            sessionGroups[activitySessionID].startTime = activity.timestamp;
+        }
+        if (new Date(activity.timestamp) > new Date(sessionGroups[activitySessionID].endTime)) {
+            sessionGroups[activitySessionID].endTime = activity.timestamp;
+        }
+        
+        // Group apps within session
+        const appName = activity.appName || 'Unknown';
+        if (!sessionGroups[activitySessionID].apps[appName]) {
+            sessionGroups[activitySessionID].apps[appName] = {
+                name: appName,
+                activities: [],
+                totalActivities: 0
+            };
+        }
+        sessionGroups[activitySessionID].apps[appName].activities.push(activity);
+        sessionGroups[activitySessionID].apps[appName].totalActivities++;
+    });
+    
+    return sessionGroups;
+}
+
+
+
+async function lazyLoadSessionContent(sessionId) {
+    // Check if content is already loaded
+    if (window.loadedSessions && window.loadedSessions[sessionId]) {
+        return window.loadedSessions[sessionId];
+    }
+    
+    try {
+        // Load session data from backend
+        const sessionData = await ipcRenderer.invoke('get-session-details', sessionId);
+        
+        if (!sessionData) {
+            throw new Error('Session not found');
+        }
+        
+        // Cache the loaded session
+        if (!window.loadedSessions) window.loadedSessions = {};
+        window.loadedSessions[sessionId] = sessionData;
+        
+        return sessionData;
+    } catch (error) {
+        console.error('Error loading session:', error);
+        return null;
+    }
+}
+
+async function displaySession(sessionId) {
+    const contentElement = document.getElementById('session-content');
+    
+    // Show loading state
+    contentElement.innerHTML = '<div class="loading">Loading session data...</div>';
+    
+    try {
+        const sessionData = await lazyLoadSessionContent(sessionId);
+        
+        if (!sessionData) {
+            contentElement.innerHTML = '<div class="error">Error: Could not load session data.</div>';
+            return;
+        }
+        
+        // Clear previous content and update header
+        contentElement.innerHTML = '';
+        document.querySelector('#content-container h3').textContent = 
+            `Content for session started at ${new Date(sessionData.startTime).toLocaleString()}`;
+
+        // Render session content with better organization
+        renderSessionContent(sessionData, contentElement);
+        console.log("this is the session");
+
+    } catch (error) {
+        contentElement.innerHTML = '<div class="error">Error loading session data.</div>';
+        console.error('Session display error:', error);
+    }
+}
+
+function renderSessionContent(sessionData, container) {
+    let currentContext = null;
+    let textBuffer = '';
+    let contextGroup = document.createElement('div');
+    contextGroup.className = 'context-group';
+    console.log('sessionData :>> ', sessionData);
+    sessionData.activities.forEach((activity, index) => {
+        const activityContext = `${activity.appName} - ${activity.windowTitle}`;
+        
+        // If context changes, finalize current group and start new one
+        if (activityContext !== currentContext) {
+            if (textBuffer && currentContext) {
+                finalizeContextGroup(contextGroup, textBuffer, currentContext);
+                container.appendChild(contextGroup);
+            }
+            
+            // Start new context group
+            contextGroup = document.createElement('div');
+            contextGroup.className = 'context-group';
+            contextGroup.setAttribute('data-context', activityContext);
+            
+            // Add context header
+            const contextHeader = document.createElement('div');
+            contextHeader.className = 'context-header';
+            contextHeader.innerHTML = `
+                <strong>📱 ${activity.appName}</strong> - ${activity.windowTitle}
+                ${activity.url ? `<br><small>🔗 ${activity.url}</small>` : ''}
+            `;
+            contextGroup.appendChild(contextHeader);
+            
+            currentContext = activityContext;
+            textBuffer = '';
+        }
+        
+        // Process activity
+        if (activity.type === 'paste') {
+            // Finalize any existing text buffer
+            if (textBuffer) {
+                addTextSpan(contextGroup, textBuffer, 'typed');
+                textBuffer = '';
+            }
+            // Add pasted content
+            addTextSpan(contextGroup, activity.text, 'pasted');
+        } else if (activity.type === 'keystroke') {
+            const key = activity.key === 'SPACE' ? ' ' : (activity.key === 'DOT' ? '.' : (activity.key?.length === 1 ? activity.key : ''));
+            
+            textBuffer += key;
+            
+            if (key) textBuffer += key;
+        }
+        
+        // Handle last activity
+        if (index === sessionData.activities.length - 1) {
+            if (textBuffer) addTextSpan(contextGroup, textBuffer, 'typed');
+            container.appendChild(contextGroup);
+        }
+    });
+}
+
+function addTextSpan(container, text, type) {
+    const span = document.createElement('span');
+    span.className = `sentence ${type}`;
+    span.textContent = text;
+    container.appendChild(span);
+}
+
+function addDateTimeFilters() {
+    const filtersSection = document.querySelector('.filters-section') || createFiltersSection();
+    
+    filtersSection.innerHTML = `
+        <h3>📅 Filters & Controls</h3>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label class="filter-label">Date Range</label>
+                <div class="date-range">
+                    <input type="date" id="startDate" class="date-input">
+                    <span>to</span>
+                    <input type="date" id="endDate" class="date-input">
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Application Filter</label>
+                <select id="appFilter" class="select-input">
+                    <option value="">All Applications</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Session Filter</label>
+                <select id="sessionFilter" class="select-input">
+                    <option value="">All Sessions</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Activity Type</label>
+                <select id="activityFilter" class="select-input">
+                    <option value="">All Activities</option>
+                    <option value="keystroke">Keystrokes Only</option>
+                    <option value="paste">Paste Events Only</option>
+                    <option value="mouse">Mouse Events Only</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="filter-actions">
+            <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+            <button class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            <button class="btn btn-success" onclick="exportFilteredData()">Export Filtered Data</button>
+        </div>
+    `;
+    
+    // Populate filter options
+    populateFilterOptions();
+    
+    // Add event listeners
+    setupFilterEventListeners();
+}
+
+function populateFilterOptions() {
+    // Get unique apps
+    const apps = [...new Set(allTrackingData.map(d => d.appName))].filter(Boolean);
+    const appSelect = document.getElementById('appFilter');
+    apps.forEach(app => {
+        const option = document.createElement('option');
+        option.value = app;
+        option.textContent = app;
+        appSelect.appendChild(option);
+    });
+    
+    // Get sessions
+    const sessions = groupDataBySession();
+    const sessionSelect = document.getElementById('sessionFilter');
+    Object.entries(sessions).forEach(([sessionId, session]) => {
+        const option = document.createElement('option');
+        option.value = sessionId;
+        option.textContent = `Session ${new Date(session.startTime).toLocaleString()}`;
+        sessionSelect.appendChild(option);
+    });
+}
+
+function applyFilters() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    const appFilter = document.getElementById('appFilter').value;
+    const sessionFilter = document.getElementById('sessionFilter').value;
+    const activityFilter = document.getElementById('activityFilter').value;
+    
+    let filteredData = [...allTrackingData];
+    
+    // Apply date filter
+    if (startDate || endDate) {
+        filteredData = filteredData.filter(activity => {
+            const activityDate = new Date(activity.timestamp);
+            const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+            const end = endDate ? new Date(endDate + 'T23:59:59') : new Date('2100-01-01');
+            return activityDate >= start && activityDate <= end;
+        });
+    }
+    
+    // Apply app filter
+    if (appFilter) {
+        filteredData = filteredData.filter(activity => activity.appName === appFilter);
+    }
+    
+    // Apply session filter
+    if (sessionFilter) {
+        filteredData = filteredData.filter(activity => activity.sessionID === sessionFilter);
+    }
+    
+    // Apply activity type filter
+    if (activityFilter) {
+        filteredData = filteredData.filter(activity => activity.type === activityFilter);
+    }
+    
+    // Update trackingData and refresh dashboard
+    trackingData = filteredData;
+    updateDashboard();
+    
+    // Show filter summary
+    showFilterSummary(filteredData.length, allTrackingData.length);
+}
+
+function showFilterSummary(filteredCount, totalCount) {
+    const summary = document.getElementById('filter-summary') || createFilterSummary();
+    summary.innerHTML = `
+        <div class="filter-result">
+            📊 Showing ${filteredCount.toLocaleString()} of ${totalCount.toLocaleString()} activities
+            ${filteredCount < totalCount ? 
+                `<button class="btn-link" onclick="clearFilters()">Show All</button>` : ''}
+        </div>
+    `;
+}
+
+
+
+function renderDrillDownSessionChart() {
+    const ctx = document.getElementById('drillDownChart').getContext('2d');
+    if (charts.drillDownChart) {
+        charts.drillDownChart.destroy();
+    }
+
+    const sessionGroups = groupDataBySession();
+    const sessionData = [];
+    // console.log('sessionGroups :>> ', sessionGroups);
+    if (!sessionGroups || Object.keys(sessionGroups).length === 0) {
+        console.log('No session data available');
+        return;
+    }
+    // Initialize with session-level view
+
+    let sessionIndex = 1;
+
+
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+    if (sessionData.length === 0) {
+        console.log('No valid sessions found');
+        return;
+    }
+
+    
+    for (const sessionID in sessionGroups) {
+        const session = sessionGroups[sessionID];
+        
+        // ADD NULL CHECKS
+        if (!session || !session.activities || session.activities.length === 0) {
+            continue;
+        }
+        
+        const totalActivities = session.activities.length;
+        const duration = calculateSessionDuration(session);
+        
+        sessionData.push({
+            label: `Session ${sessionIndex}`,
+            value: totalActivities,
+            sessionID: sessionID,
+            duration: duration,
+            color: getSessionColor(sessionIndex - 1),
+            level: 'session'
+        });
+        sessionIndex++;
+    }
+
+
+
+
+
+
+    charts.drillDownChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: sessionData.map(s => s.label),
+            datasets: [{
+                data: sessionData.map(s => s.value),
+                backgroundColor: sessionData.map(s => s.color),
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverBorderWidth: 5,
+                hoverOffset: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '📊 Sessions Overview - Click to Drill Down',
+                    font: { size: 18, weight: 'bold' },
+                    color: '#2c3e50'
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { size: 14 }  
+                    }
+                },
+                
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    cornerRadius: 10,
+                    padding: 15,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            if (!tooltipItems || tooltipItems.length === 0) return '';
+                            const item = tooltipItems[0];
+                            return `🗂️ ${sessionData[item.dataIndex]?.label || 'Unknown Session'}`;
+                        },
+                        label: function(context) {
+                            if (!context || typeof context.dataIndex === 'undefined') return '';
+                            const session = sessionData[context.dataIndex];
+                            if (!session) return '';
+                            
+                            return [
+                                `📊 Activities: ${session.value}`,
+                                `⏱️ Duration: ${session.duration}`,
+                                `🖱️ Click to view apps breakdown`
+                            ];
+                        }
+                    }
+                }
+            },
+            onClick: (event, activeElements) => {
+                try {
+                    if (activeElements && activeElements.length > 0) {
+                        const elementIndex = activeElements[0].index;
+                        const selectedSession = sessionData[elementIndex];
+                        
+                        if (selectedSession) {
+                            drillDownToApps(selectedSession);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Chart click error:', error);
+                }
+            },
+            onHover: (event, activeElements) => {
+                try {
+                    if (event && event.native && event.native.target) {
+                        event.native.target.style.cursor = 
+                            (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                    }
+                } catch (error) {
+                    console.error('Chart hover error:', error);
+                }
+            }
+        }
+    });
+
+
+
+    // Store chart state
+    window.chartDrillState = {
+        level: 'session',
+        data: sessionData,
+        sessionGroups: sessionGroups
+    };
+
+}
+
+function drillDownToApps(selectedSession) {
+    const ctx = document.getElementById('drillDownChart').getContext('2d');
+    const sessionGroup = window.chartDrillState.sessionGroups[selectedSession.sessionID];
+    if (!window.chartDrillState || !window.chartDrillState.sessionGroups) {
+            console.error('Chart drill state not found');
+            return;
+        }
+
+    // Analyze apps in this session
+    const appAnalysis = analyzeSessionApps(sessionGroup);
+
+    console.log('appAnalysis :>> ', appAnalysis);
+    if (!appAnalysis || appAnalysis.length === 0) {
+            console.error('No apps found in this session');
+            return;
+        }
+        
+
+    const appData = [];
+    
+    appAnalysis.forEach((app, index) => {
+            appData.push({
+                label: app.name,
+                value: app.activities,
+                sessionID: selectedSession.sessionID,
+                appName: app.name,
+                duration: app.duration,
+                typedText: app.typedText || '',
+                pastedText: app.pastedText || '',
+                color: lightenDarkenColor(selectedSession.color, index * 40 - 80),
+                level: 'app'
+            });
+        });
+
+
+    // Destroy and recreate chart with app data
+    if (charts.drillDownChart) {
+            charts.drillDownChart.destroy();
+        }
+    
+  
+        
+
+        charts.drillDownChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: appData.map(a => a.label),
+                datasets: [{
+                    data: appData.map(a => a.value),
+                    backgroundColor: appData.map(a => a.color),
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 5,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `📱 ${selectedSession.label} - Applications Breakdown`,
+                        font: { size: 18, weight: 'bold' },
+                        color: '#2c3e50'
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        cornerRadius: 10,
+                        padding: 15,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                if (!tooltipItems || tooltipItems.length === 0) return '';
+                                const item = tooltipItems[0];
+                                return `📱 ${appData[item.dataIndex]?.label || 'Unknown App'}`;
+                            },
+                            label: function(context) {
+                                if (!context || typeof context.dataIndex === 'undefined') return '';
+                                const app = appData[context.dataIndex];
+                                if (!app) return '';
+                                
+                                return [
+                                    `📊 Activities: ${app.value}`,
+                                    `⏱️ Duration: ${app.duration}`,
+                                    `⌨️ Typed: ${(app.typedText || '').substring(0, 50)}${(app.typedText || '').length > 50 ? '...' : ''}`,
+                                    `📋 Pasted: ${(app.pastedText || '').substring(0, 50)}${(app.pastedText || '').length > 50 ? '...' : ''}`,
+                                    `🖱️ Click to view dashboard`
+                                ];
+                            }
+                        }
+                    }
+                },
+                onClick: (event, activeElements) => {
+                    try {
+                        if (activeElements && activeElements.length > 0) {
+                            const elementIndex = activeElements[0].index;
+                            const selectedApp = appData[elementIndex];
+                            
+                            if (selectedApp) {
+                                openAppDashboard(selectedApp);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('App chart click error:', error);
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    try {
+                        if (event && event.native && event.native.target) {
+                            event.native.target.style.cursor = 
+                                (activeElements && activeElements.length > 0) ? 'pointer' : 'default';
+                        }
+                    } catch (error) {
+                        console.error('App chart hover error:', error);
+                    }
+                }
+            }
+        });
+
+
+    // Update chart state and add back button
+    window.chartDrillState = {
+        level: 'app',
+        data: appData,
+        parentSession: selectedSession
+    };
+    
+    addChartBackButton();
+}
+
+function validateTrackingData() {
+    if (!allTrackingData || !Array.isArray(allTrackingData)) {
+        console.error('allTrackingData is not a valid array');
+        allTrackingData = [];
+        return false;
+    }
+    
+    // Filter out invalid entries
+    allTrackingData = allTrackingData.filter(activity => 
+        activity && 
+        activity.timestamp && 
+        activity.type && 
+        (activity.sessionID || activity.sessionID === 0)
+    );
+    
+    console.log(`Validated ${allTrackingData.length} activities`);
+    return allTrackingData.length > 0;
+}
+
+
+function analyzeSessionApps(sessionGroup) {
+    const apps = {};
+    
+    sessionGroup.activities.forEach(activity => {
+        const appName = activity.appName || 'Unknown';
+        
+        if (!apps[appName]) {
+            apps[appName] = {
+                name: appName,
+                activities: 0,
+                startTime: new Date(activity.timestamp),
+                endTime: new Date(activity.timestamp),
+                typedText: '',
+                pastedText: ''
+            };
+        }
+        
+        apps[appName].activities++;
+        apps[appName].endTime = new Date(activity.timestamp);
+        
+        // Collect text content
+        if (activity.type === 'paste') {
+            apps[appName].pastedText += activity.text + ' ';
+        } else if (activity.type === 'keystroke') {
+            const key = activity.key === 'SPACE' ? ' ' : 
+                       (activity.key && activity.key.length === 1 ? activity.key : '');
+            if (key) apps[appName].typedText += key;
+        }
+    });
+    
+    // Calculate durations and clean up text
+    return Object.values(apps).map(app => ({
+        ...app,
+        duration: formatDuration(app.endTime - app.startTime),
+        typedText: app.typedText.trim(),
+        pastedText: app.pastedText.trim()
+    })).sort((a, b) => b.activities - a.activities);
+}
+
+function openAppDashboard(selectedApp) {
+    // Filter data for this specific app and session
+    const filteredData = allTrackingData.filter(activity => 
+        activity.sessionID === selectedApp.sessionID && 
+        activity.appName === selectedApp.appName
+        
+    );
+    console.log('filteredData :>> ', filteredData);
+
+    if (!filteredData || filteredData.length === 0) {
+        console.error('No data found for this app/session combination');
+        alert('No data available for this selection');
+        return;
+    }
+
+
+    // Store original data for restoration
+    if (!window.originalTrackingData) {
+        window.originalTrackingData = [...trackingData];
+    }
+    
+    // Update global tracking data
+    trackingData = filteredData;
+    
+    // Calculate session info
+    const sessionStart = new Date(filteredData[0].timestamp);
+    const sessionEnd = new Date(filteredData[filteredData.length - 1].timestamp);
+    console.log('sessionStart.getTime() :>> ', sessionStart.getTime());
+    console.log('sessionEnd.getTime() :>> ', sessionEnd.getTime());
+    if (isNaN(sessionStart.getTime()) || isNaN(sessionEnd.getTime())) {
+        console.error('Invalid timestamps in filtered data');
+        return;
+    }
+    
+    // Update dashboard header with specific info
+    updateDashboardHeader(selectedApp, sessionStart, sessionEnd);
+    
+    // Refresh entire dashboard with filtered data
+    updateDashboard();
+    
+    // Add enhanced navigation
+    addAppDashboardNavigation(selectedApp);
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateDashboardHeader(selectedApp, sessionStart, sessionEnd) {
+    const header = document.querySelector('.header');
+    header.innerHTML = `
+        <div class="app-dashboard-header">
+            <h1>📱 ${selectedApp.appName} Dashboard</h1>
+            <div class="session-info-detailed">
+                <div class="info-row">
+                    <div class="info-item">
+                        <span class="info-label">Session</span>
+                        <span class="info-value">${window.chartDrillState.parentSession.label}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Date</span>
+                        <span class="info-value">${sessionStart.toLocaleDateString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Time Range</span>
+                        <span class="info-value">${sessionStart.toLocaleTimeString()} - ${sessionEnd.toLocaleTimeString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Duration</span>
+                        <span class="info-value">${formatDuration(sessionEnd - sessionStart)}</span>
+                    </div>
+                </div>
+                <div class="content-preview">
+                    <div class="typed-preview">
+                        <strong>⌨️ Typed Content:</strong>
+                        <span>${selectedApp.typedText.substring(0, 100)}${selectedApp.typedText.length > 100 ? '...' : ''}</span>
+                    </div>
+                    <div class="pasted-preview">
+                        <strong>📋 Pasted Content:</strong>
+                        <span>${selectedApp.pastedText.substring(0, 100)}${selectedApp.pastedText.length > 100 ? '...' : ''}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addAppDashboardNavigation(selectedApp) {
+    const controls = document.querySelector('.controls');
+    
+    // Remove existing navigation if present
+    const existingNav = document.getElementById('appDashboardNav');
+    if (existingNav) existingNav.remove();
+    
+    const navigation = document.createElement('div');
+    navigation.id = 'appDashboardNav';
+    navigation.className = 'app-dashboard-nav';
+    navigation.innerHTML = `
+        <button class="nav-btn back-to-apps" onclick="backToAppsView()">
+            ← Back to Apps
+        </button>
+        <button class="nav-btn back-to-sessions" onclick="backToSessionsView()">
+            ← Back to Sessions
+        </button>
+        <button class="nav-btn show-all" onclick="showAllSessions()">
+            🏠 Show All Data
+        </button>
+        <div class="current-view">
+            📍 Viewing: ${selectedApp.appName} in ${window.chartDrillState.parentSession.label}
+        </div>
+    `;
+    
+    controls.appendChild(navigation);
+}
+
+function addChartBackButton() {
+    const chartContainer = document.getElementById('drillDownChart').parentElement;
+    
+    // Remove existing back button
+    const existingBtn = chartContainer.querySelector('.chart-back-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    const backButton = document.createElement('button');
+    backButton.className = 'chart-back-btn';
+    backButton.innerHTML = '← Back to Sessions';
+    backButton.onclick = backToSessionsView;
+    
+    chartContainer.insertBefore(backButton, chartContainer.firstChild);
+}
+
+function backToAppsView() {
+    if (window.chartDrillState.parentSession) {
+        drillDownToApps(window.chartDrillState.parentSession);
+    }
+}
+
+function backToSessionsView() {
+    renderDrillDownSessionChart();
+    
+    // Remove app dashboard navigation
+    const nav = document.getElementById('appDashboardNav');
+    if (nav) nav.remove();
+    
+    // Restore original header
+    const header = document.querySelector('.header');
+    header.innerHTML = `
+        <h1>Activity Tracker Dashboard</h1>
+        <div class="session-info">
+            <div class="info-item">
+                <span class="info-label">Session Duration</span>
+                <span class="info-value" id="sessionDuration">--:--:--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total Keystrokes</span>
+                <span class="info-value" id="totalKeystrokes">0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Words Typed</span>
+                <span class="info-value" id="wordsTyped">0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Active Applications</span>
+                <span class="info-value" id="activeApps">0</span>
+            </div>
+        </div>
+    `;
+}
+
+
+function showAllSessions() {
+    const allSessions = document.querySelectorAll('.session-item');
+    const showAllBtn = document.getElementById('showAllSessionsBtn');
+    
+    // Show all sessions
+    allSessions.forEach(item => {
+        item.classList.remove('collapsed', 'expanded', 'active');
+    });
+    
+    // Hide the "Show All Sessions" button
+    showAllBtn.classList.remove('visible');
+    
+    // Restore original data if needed
+    if (window.originalTrackingData) {
+        allTrackingData = window.originalTrackingData;
+        trackingData = window.originalTrackingData;
+        delete window.originalTrackingData;
+    }
+    
+    // Update dashboard to show all data
+    updateDashboard();
+    
+    // Reset header
+    const headerTitle = document.querySelector('.header h1');
+    headerTitle.textContent = 'Activity Tracker Dashboard';
+    
+    // Remove any existing back buttons
+    const backBtn = document.getElementById('backToAllBtn');
+    if (backBtn) backBtn.remove();
+    
+    // Remove app dashboard navigation
+    const nav = document.getElementById('appDashboardNav');
+    if (nav) nav.remove();
+}
+
+
+// Helper functions
+function calculateSessionDuration(session) {
+    const start = new Date(session.startTime);
+    const end = new Date(session.endTime);
+    return formatDuration(end - start);
+}
+
+
+function formatDuration(milliseconds) {
+    if (!milliseconds || milliseconds < 0) return '0s';
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+
+function getSessionColor(index) {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+    ];
+    return colors[index % colors.length];
+}
+
+function lightenDarkenColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+    }
+    var num = parseInt(col, 16);
+    var r = (num >> 16) + amt;
+    var g = (num >> 8 & 0x00FF) + amt;
+    var b = (num & 0x0000FF) + amt;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + (r << 16 | g << 8 | b).toString(16);
+}
+
+function adjustColorBrightness(color, amount) {
+    const usePound = color[0] === "#";
+    const col = usePound ? color.slice(1) : color;
+    const num = parseInt(col, 16);
+    let r = (num >> 16) + amount;
+    let g = (num >> 8 & 0x00FF) + amount;
+    let b = (num & 0x0000FF) + amount;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
+    return (usePound ? "#" : "") + String("000000" + (r << 16 | g << 8 | b).toString(16)).slice(-6);
+}
+
+
+
+        function updateStats() {
+            console.log('trackingData :>> ', trackingData);
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            const mouseEvents = trackingData.filter(d => d.type === 'mouse');
+            const apps = [...new Set(trackingData.map(d => d.appName))];
+            
+            document.getElementById('totalKeystrokes').textContent = keystrokes.length;
+            document.getElementById('activeApps').textContent = apps.length;
+            document.getElementById('mouseClicks').textContent = mouseEvents.length;
+            
+            // Calculate words typed
+            const words = calculateWordsTyped(keystrokes);
+            document.getElementById('wordsTyped').textContent = words;
+            
+            // Calculate average WPM
+            if (sessionData && sessionData.startTime && sessionData.endTime) {
+                const duration = (new Date(sessionData.endTime) - new Date(sessionData.startTime)) / 60000; // minutes
+                const wpm = Math.round(words / duration);
+                document.getElementById('avgWPM').textContent = isNaN(wpm) ? 0 : wpm;
+                
+                // Update session duration
+                const hours = Math.floor(duration / 60);
+                const minutes = Math.floor(duration % 60);
+                const seconds = Math.floor((duration % 1) * 60);
+                document.getElementById('sessionDuration').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Count paste events and backspaces
+            const pasteEvents = keystrokes.filter(k => k.key && k.key.includes('V') && k.ctrlKey).length;
+            const backspaces = keystrokes.filter(k => k.key === 'BACKSPACE' || k.key === 'DELETE').length;
+            
+            document.getElementById('pasteCount').textContent = pasteEvents;
+            document.getElementById('backspaceCount').textContent = backspaces;
+        }
+
+        function calculateWordsTyped(keystrokes) {
+            let text = '';
+            keystrokes.forEach(k => {
+                if (k.key && k.key.length === 1 && k.key.match(/[a-zA-Z0-9\s]/)) {
+                    text += k.key;
+                } else if (k.key === 'SPACE') {
+                    text += ' ';
+                }
+            });
+            return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+        }
+
+        function renderSessions() {
+            const sessionsContainer = document.getElementById('sessions-container');
+            sessionsContainer.innerHTML = '<h2>Session Activity</h2>'; // Clear and add header
+
+            const sessions = groupDataBySession();
+
+            for (const sessionID in sessions) {
+                const session = sessions[sessionID];
+                const sessionBlock = document.createElement('div');
+                sessionBlock.className = 'session-block';
+
+                const sessionHeader = document.createElement('div');
+                sessionHeader.className = 'session-header';
+                const startTime = new Date(session.startTime).toLocaleString();
+                sessionHeader.textContent = `Session started at: ${startTime}`;
+                sessionBlock.appendChild(sessionHeader);
+                
+                let currentContext = null;
+                let textBuffer = '';
+
+                session.activities.forEach((activity, index) => {
+                    const activityContext = `${activity.appName} - ${activity.windowTitle}\nURL: ${activity.url || 'N/A'}`;
+
+                    // If context changes, render the previous buffer and start a new one
+                    if (activityContext !== currentContext && textBuffer) {
+                        const span = document.createElement('span');
+                        span.className = currentContext.includes('pasted') ? 'sentence pasted' : 'sentence typed';
+                        span.textContent = textBuffer;
+                        span.dataset.tooltip = currentContext.replace(' pasted', '');
+                        sessionBlock.appendChild(span);
+                        textBuffer = '';
+                    }
+                    
+                    currentContext = activityContext + (activity.type === 'paste' ? ' pasted' : '');
+                    
+                    if (activity.type === 'paste') {
+                        // If there was typed text before, render it
+                         if (textBuffer) {
+                             const typedSpan = document.createElement('span');
+                             typedSpan.className = 'sentence typed';
+                             typedSpan.textContent = textBuffer;
+                             typedSpan.dataset.tooltip = currentContext.replace(' pasted', '');
+                             sessionBlock.appendChild(typedSpan);
+                             textBuffer = '';
+                         }
+                        // Render the pasted text immediately
+                        const pasteSpan = document.createElement('span');
+                        pasteSpan.className = 'sentence pasted';
+                        pasteSpan.textContent = activity.text;
+                        pasteSpan.dataset.tooltip = activityContext;
+                        sessionBlock.appendChild(pasteSpan);
+
+                    } else if (activity.type === 'keystroke') {
+                        const key = activity.key === 'SPACE' ? ' ' : (activity.key?.length === 1 ? activity.key : '');
+                        textBuffer += key;
+                    }
+
+                    // Render any remaining buffer at the end of the loop
+                    if (index === session.activities.length - 1 && textBuffer) {
+                        const span = document.createElement('span');
+                        span.className = 'sentence typed';
+                        span.textContent = textBuffer;
+                        span.dataset.tooltip = currentContext;
+                        sessionBlock.appendChild(span);
+                    }
+                });
+
+                sessionsContainer.appendChild(sessionBlock);
+            }
+        }
+
+        function renderAppUsageChart() {
+            const ctx = document.getElementById('appUsageChart').getContext('2d');
+            if (charts.appUsageChart) {
+                charts.appUsageChart.destroy();
+            }
+
+            // <<< NEW: Data processing for multi-level chart
+            const usageData = {};
+            allTrackingData.forEach(act => {
+                if (!usageData[act.appName]) {
+                    usageData[act.appName] = { count: 0, titles: {} };
+                }
+                usageData[act.appName].count++;
+                
+                if (!usageData[act.appName].titles[act.windowTitle]) {
+                    usageData[act.appName].titles[act.windowTitle] = 0;
+                }
+                usageData[act.appName].titles[act.windowTitle]++;
+            });
+
+            console.log('allTrackingData :>> ', allTrackingData);
+            const appLabels = Object.keys(usageData);
+            const appCounts = appLabels.map(app => usageData[app].count);
+
+            const titleLabels = [];
+            const titleCounts = [];
+            const titleColors = [];
+
+            const baseColors = ['#36A2EB', '#FF6384', '#FF9F40', '#4BC0C0', '#9966FF', '#FFCD56'];
+
+            appLabels.forEach((appName, index) => {
+                const titles = usageData[appName].titles;
+                const appColor = baseColors[index % baseColors.length];
+                let colorIndex = 0;
+                for (const title in titles) {
+                    titleLabels.push(title);
+                    titleCounts.push(titles[title]);
+                    // Generate shades for sub-categories
+                    titleColors.push(appColor + (99 - (colorIndex * 15)).toString()); 
+                    colorIndex++;
+                }
+            });
+
+console.log('appLabels :>> ', appLabels);
+            charts.appUsageChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: appLabels, // Ensure top-level labels
+        datasets: [
+            {
+                label: 'Applications',
+                data: appCounts,
+                backgroundColor: baseColors,
+                labels: appLabels // Add labels to dataset
+            },
+            {
+                label: 'Window Titles',
+                data: titleCounts,
+                backgroundColor: titleColors,
+                labels: titleLabels // Already correct
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const dataset = context.dataset;
+                        let label = dataset.labels[context.dataIndex] || context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += context.parsed;
+                        return label;
+                    }
+                }
+            }
+        }
+    }
+});
+      
+        }
+        function updateCharts() {
+            updateActivityChart();
+            updateAppChart();
+            updateKeystrokeChart();
+            updateMouseChart();
+        }
+
+        function updateActivityChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            
+            if (charts.activityChart) {
+                charts.activityChart.destroy();
+            }
+            
+            // Group activities by time intervals (5-minute intervals)
+            const timeGroups = {};
+            trackingData.forEach(activity => {
+                const time = new Date(activity.timestamp);
+                const interval = Math.floor(time.getMinutes() / 5) * 5;
+                const key = `${time.getHours()}:${interval.toString().padStart(2, '0')}`;
+                
+                if (!timeGroups[key]) {
+                    timeGroups[key] = { keystrokes: 0, mouse: 0 };
+                }
+                
+                if (activity.type === 'keystroke') {
+                    timeGroups[key].keystrokes++;
+                } else if (activity.type === 'mouse') {
+                    timeGroups[key].mouse++;
+                }
+            });
+            
+            const labels = Object.keys(timeGroups).sort();
+            const keystrokeData = labels.map(label => timeGroups[label].keystrokes);
+            const mouseData = labels.map(label => timeGroups[label].mouse);
+            
+            charts.activityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Keystrokes',
+                        data: keystrokeData,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Mouse Events',
+                        data: mouseData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateAppChart() {
+            const ctx = document.getElementById('appChart').getContext('2d');
+            
+            if (charts.appChart) {
+                charts.appChart.destroy();
+            }
+            
+            // Count activities by application
+            const appCounts = {};
+            trackingData.forEach(activity => {
+                const app = activity.appName || 'Unknown';
+                appCounts[app] = (appCounts[app] || 0) + 1;
+            });
+            
+            const sortedApps = Object.entries(appCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 10); // Top 10 apps
+            
+            const labels = sortedApps.map(([app]) => app);
+            const data = sortedApps.map(([,count]) => count);
+            const colors = [
+                '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                '#1abc9c', '#34495e', '#f1c40f', '#e67e22', '#95a5a6'
+            ];
+            
+            charts.appChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateKeystrokeChart() {
+            const ctx = document.getElementById('keystrokeChart').getContext('2d');
+            
+            if (charts.keystrokeChart) {
+                charts.keystrokeChart.destroy();
+            }
+            
+            const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            const keyCounts = {};
+            
+            keystrokes.forEach(k => {
+                const key = k.key || 'Unknown';
+                if (key.length === 1 && key.match(/[a-zA-Z]/)) {
+                    keyCounts[key.toUpperCase()] = (keyCounts[key.toUpperCase()] || 0) + 1;
+                }
+            });
+            
+            const sortedKeys = Object.entries(keyCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 15);
+            
+            const labels = sortedKeys.map(([key]) => key);
+            const data = sortedKeys.map(([,count]) => count);
+            
+            charts.keystrokeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frequency',
+                        data: data,
+                        backgroundColor: '#3498db',
+                        borderColor: '#2980b9',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMouseChart() {
+            const ctx = document.getElementById('mouseChart').getContext('2d');
+            
+            if (charts.mouseChart) {
+                charts.mouseChart.destroy();
+            }
+            
+            const mouseEvents = trackingData.filter(d => d.type === 'mouse');
+            
+            // Create a simple scatter plot for mouse positions
+            const scatterData = mouseEvents.map(event => ({
+                x: event.x,
+                y: event.y
+            }));
+            
+            charts.mouseChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Mouse Positions',
+                        data: scatterData,
+                        backgroundColor: 'rgba(231, 76, 60, 0.5)',
+                        borderColor: '#e74c3c',
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'X Position'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Y Position'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateActivityLog() {
+            const activityList = document.getElementById('activityList');
+            let filteredData = trackingData;
+            
+            if (currentFilter !== 'all') {
+                filteredData = trackingData.filter(activity => {
+                    if (currentFilter === 'paste') {
+                        return activity.type === 'keystroke' && activity.key && activity.key.includes('V');
+                    }
+                    return activity.type === currentFilter;
+                });
+            }
+            
+            // Show only last 50 activities for performance
+            const recentActivities = filteredData.slice(-50).reverse();
+            
+            activityList.innerHTML = recentActivities.map(activity => {
+                const time = new Date(activity.timestamp).toLocaleTimeString();
+                const className = getActivityClass(activity);
+                
+                return `
+                    <div class="activity-item ${className}">
+                        <div class="activity-header">
+                            <span>${activity.type === 'keystroke' ? 'Key: ' + (activity.key || 'Unknown') : 'Mouse'}</span>
+                            <span>${time}</span>
+                        </div>
+                        <div class="activity-content">
+                            App: ${activity.appName || 'Unknown'} | 
+                            Window: ${activity.windowTitle || 'Unknown'}
+                            ${activity.url ? ` | URL: ${activity.url}` : ''}
+                            ${activity.x !== undefined ? ` | Position: (${activity.x}, ${activity.y})` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getActivityClass(activity) {
+            if (activity.type === 'keystroke') {
+                if (activity.key && activity.key.includes('V')) {
+                    return 'pasted';
+                }
+                // You can add more logic here for fast typing detection
+                return 'typed';
+            }
+            return '';
+        }
+
+        function updateTextAnalysis() {
+    const textContent = document.getElementById('textContent');
+    textContent.innerHTML = ''; // Clear the display first
+    let textBuffer = '';
+    const activities = sessionData?.activities || allTrackingData;
+
+    activities.forEach(activity => {
+        if (activity.type === 'paste') {
+            if (textBuffer) { // Add any buffered typed text first
+                const typedSpan = document.createElement('span');
+                typedSpan.className = 'sentence typed';
+                typedSpan.textContent = textBuffer;
+                textContent.appendChild(typedSpan);
+                textBuffer = '';
+            }
+            const pasteSpan = document.createElement('span');
+            pasteSpan.className = 'sentence pasted';
+            pasteSpan.textContent = activity.text || '';
+            textContent.appendChild(pasteSpan);
+        } else if (activity.type === 'keystroke') {
+            if (activity.key === 'SPACE') textBuffer += ' ';
+            else if (activity.key === 'DOT') textBuffer += '.'; // <<< THIS IS THE FIX
+            else if (activity.key?.length === 1) textBuffer += activity.key;
+        }
+    });
+
+    if (textBuffer) { // Add any leftover typed text at the end
+        const finalSpan = document.createElement('span');
+        finalSpan.className = 'sentence typed';
+        finalSpan.textContent = textBuffer;
+        textContent.appendChild(finalSpan);
+    }
+}
+
+
+        function updateTypingRhythm() {
+            const canvas = document.getElementById('rhythmCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // const keystrokes = trackingData.filter(d => d.type === 'keystroke');
+            
+            // if (keystrokes.length < 2) return;
+            
+            // // Calculate intervals between keystrokes
+            // const intervals = [];
+            // for (let i = 1; i < keystrokes.length; i++) {
+            //     const interval = new Date(keystrokes[i].timestamp) - new Date(keystrokes[i-1].timestamp);
+            //     intervals.push(interval);
+            // }
+            
+
+            const intervals = [];
+let lastKeystrokeTime = null;
+(sessionData?.activities || allTrackingData).forEach(act => {
+    if (act.type === 'keystroke') {
+        const currentTime = new Date(act.timestamp);
+        if (lastKeystrokeTime) {
+            intervals.push(currentTime - lastKeystrokeTime);
+        }
+        lastKeystrokeTime = currentTime;
+    } else if (act.type === 'paste') {
+        // A paste event is an instant action, so the interval is 0. This creates the flat line.
+        intervals.push(0); 
+        lastKeystrokeTime = null; // Reset time after a paste
+    }
+});
+if (intervals.length < 2) return;
+
+            // Draw rhythm pattern
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const maxInterval = Math.max(...intervals);
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            intervals.forEach((interval, index) => {
+                const x = (index / intervals.length) * width;
+                const y = height - (interval / maxInterval) * height;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Add baseline
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function filterActivities(filter) {
+            currentFilter = filter;
+            
+            // Update filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateActivityLog();
+        }
+
+        function refreshData() {
+            loadTrackingData();
+        }
+
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.text('Activity Tracker Report', 20, 30);
+            
+            // Add session info
+            doc.setFontSize(12);
+            let yPos = 50;
+            
+            if (sessionData) {
+                doc.text(`Session Start: ${new Date(sessionData.startTime).toLocaleString()}`, 20, yPos);
+                yPos += 10;
+                if (sessionData.endTime) {
+                    doc.text(`Session End: ${new Date(sessionData.endTime).toLocaleString()}`, 20, yPos);
+                    yPos += 10;
+                }
+            }
+            
+            // Add statistics
+            const stats = [
+                `Total Keystrokes: ${document.getElementById('totalKeystrokes').textContent}`,
+                `Words Typed: ${document.getElementById('wordsTyped').textContent}`,
+                `Average WPM: ${document.getElementById('avgWPM').textContent}`,
+                `Active Applications: ${document.getElementById('activeApps').textContent}`,
+                `Paste Events: ${document.getElementById('pasteCount').textContent}`,
+                `Corrections: ${document.getElementById('backspaceCount').textContent}`
+            ];
+            
+            yPos += 10;
+            doc.text('Statistics:', 20, yPos);
+            yPos += 10;
+            
+            stats.forEach(stat => {
+                doc.text(stat, 25, yPos);
+                yPos += 8;
+            });
+            
+            // Add activity summary
+            yPos += 10;
+            doc.text('Activity Summary:', 20, yPos);
+            yPos += 10;
+            
+            const appCounts = {};
+            trackingData.forEach(activity => {
+                const app = activity.appName || 'Unknown';
+                appCounts[app] = (appCounts[app] || 0) + 1;
+            });
+            
+            Object.entries(appCounts).slice(0, 10).forEach(([app, count]) => {
+                doc.text(`${app}: ${count} activities`, 25, yPos);
+                yPos += 8;
+                if (yPos > 280) {
+                    doc.addPage();
+                    yPos = 30;
+                }
+            });
+            
+            // Save the PDF
+            const filename = `activity_report_${Date.now()}.pdf`;
+            doc.save(filename);
+        }
+
+
+        function finalizeContextGroup(contextGroup, textBuffer, currentContext) {
+    if (textBuffer.trim()) {
+        const span = document.createElement('span');
+        span.className = `sentence ${currentContext.includes('pasted') ? 'pasted' : 'typed'}`;
+        span.textContent = textBuffer.trim();
+        span.dataset.tooltip = currentContext.replace(' pasted', '');
+        contextGroup.appendChild(span);
+    }
+}
+
+function createFiltersSection() {
+    const filtersSection = document.createElement('div');
+    filtersSection.className = 'filters-section';
+    filtersSection.style.cssText = `
+        background: rgba(255, 255, 255, 0.95);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    `;
+    document.querySelector('.dashboard').insertBefore(filtersSection, document.querySelector('.stats-grid'));
+    return filtersSection;
+}
+
+function createFilterSummary() {
+    const summary = document.createElement('div');
+    summary.id = 'filter-summary';
+    summary.style.cssText = `
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #333;
+    `;
+    document.querySelector('.dashboard').insertBefore(summary, document.querySelector('.stats-grid'));
+    return summary;
+}
+
+function clearFilters() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('appFilter').value = '';
+    document.getElementById('sessionFilter').value = '';
+    document.getElementById('activityFilter').value = '';
+    trackingData = [...allTrackingData];
+    updateDashboard();
+    showFilterSummary(trackingData.length, allTrackingData.length);
+}
+
+function exportFilteredData() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Filtered Activity Report', 20, 30);
+    
+    let yPos = 50;
+    doc.setFontSize(12);
+    doc.text(`Filtered Activities: ${trackingData.length}`, 20, yPos);
+    yPos += 10;
+    
+    const appCounts = {};
+    trackingData.forEach(activity => {
+        const app = activity.appName || 'Unknown';
+        appCounts[app] = (appCounts[app] || 0) + 1;
+    });
+    
+    doc.text('Applications:', 20, yPos);
+    yPos += 10;
+    Object.entries(appCounts).forEach(([app, count]) => {
+        doc.text(`${app}: ${count} activities`, 25, yPos);
+        yPos += 8;
+        if (yPos > 280) {
+            doc.addPage();
+            yPos = 30;
+        }
+    });
+    
+    doc.save(`filtered_activity_report_${Date.now()}.pdf`);
+}
+
+function setupFilterEventListeners() {
+    const inputs = ['startDate', 'endDate', 'appFilter', 'sessionFilter', 'activityFilter'];
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('change', applyFilters);
+        }
+    });
+}
+
+function updateSentenceSummaryChart() {
+    ChartManager.destroyChart('sentenceSummaryChart');
+    const ctx = ChartManager.cleanCanvas('sentenceSummaryChart');
+    if (!ctx) return;
+
+    // Analyze sentences from tracking data
+    const sentences = analyzeSentences(trackingData);
+    
+    const labels = sentences.map((_, index) => `S${sentences.length - index}`);
+    const wpmData = sentences.map(s => s.wpm);
+    const typedChars = sentences.map(s => s.typedChars);
+    const duration = sentences.map(s => s.duration);
+    const backspaces = sentences.map(s => s.backspaces);
+    const deletes = sentences.map(s => s.deletes);
+    const pasteInfluence = sentences.map(s => s.pasteChars);
+
+    charts.sentenceSummaryChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'WPM',
+                    data: wpmData,
+                    backgroundColor: '#3498db',
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'Typed Chars',
+                    data: typedChars,
+                    backgroundColor: '#2ecc71',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Duration (s)',
+                    data: duration,
+                    backgroundColor: '#f39c12',
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'Backspaces',
+                    data: backspaces,
+                    backgroundColor: '#e67e22',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Deletes',
+                    data: deletes,
+                    backgroundColor: '#27ae60',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Paste Influence (Chars)',
+                    data: pasteInfluence,
+                    backgroundColor: '#e74c3c',
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Characters' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'WPM / Duration' },
+                    grid: { drawOnChartArea: false }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const index = context[0].dataIndex;
+                            return `Sentence ${sentences.length - index}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateTimelineChart() {
+    ChartManager.destroyChart('timelineChart');
+    const ctx = ChartManager.cleanCanvas('timelineChart');
+    if (!ctx) return;
+
+    // Group activities by day
+    const dailyData = groupActivitiesByDay(trackingData);
+    
+    const labels = Object.keys(dailyData).sort();
+    const wordsTyped = labels.map(date => dailyData[date].wordsTyped);
+    const activeTime = labels.map(date => dailyData[date].activeTime);
+    const pasteEvents = labels.map(date => dailyData[date].pasteEvents);
+
+    charts.timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(date => new Date(date).toLocaleDateString()),
+            datasets: [
+                {
+                    label: 'Words Typed',
+                    data: wordsTyped,
+                    backgroundColor: 'rgba(52, 152, 219, 0.3)',
+                    borderColor: '#3498db',
+                    yAxisID: 'y',
+                    type: 'bar'
+                },
+                {
+                    label: 'Active Time (min)',
+                    data: activeTime,
+                    backgroundColor: 'rgba(46, 204, 113, 0.3)',
+                    borderColor: '#2ecc71',
+                    yAxisID: 'y1',
+                    tension: 0.4
+                },
+                {
+                    label: 'Paste Events',
+                    data: pasteEvents,
+                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                    borderColor: '#e74c3c',
+                    yAxisID: 'y',
+                    type: 'bar'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Count' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Minutes' },
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+}
+
+function updateProductivityChart() {
+    ChartManager.destroyChart('productivityChart');
+    const ctx = ChartManager.cleanCanvas('productivityChart');
+    if (!ctx) return;
+
+    // Calculate productivity metrics by hour
+    const hourlyData = groupActivitiesByHour(trackingData);
+    
+    const labels = Object.keys(hourlyData).sort((a, b) => parseInt(a) - parseInt(b));
+    const efficiency = labels.map(hour => hourlyData[hour].efficiency);
+    const wpm = labels.map(hour => hourlyData[hour].avgWPM);
+    const errorRate = labels.map(hour => hourlyData[hour].errorRate);
+
+    charts.productivityChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels.map(hour => `${hour}:00`),
+            datasets: [
+                {
+                    label: 'Efficiency %',
+                    data: efficiency,
+                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                    borderColor: '#3498db',
+                    pointBackgroundColor: '#3498db'
+                },
+                {
+                    label: 'Avg WPM',
+                    data: wpm.map(w => w / 2), // Scale down for radar
+                    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                    borderColor: '#2ecc71',
+                    pointBackgroundColor: '#2ecc71'
+                },
+                {
+                    label: 'Error Rate %',
+                    data: errorRate,
+                    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                    borderColor: '#e74c3c',
+                    pointBackgroundColor: '#e74c3c'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Helper functions
+function analyzeSentences(data) {
+    const sentences = [];
+    let currentSentence = {
+        startTime: null,
+        endTime: null,
+        typedChars: 0,
+        backspaces: 0,
+        deletes: 0,
+        pasteChars: 0,
+        text: ''
+    };
+
+    data.forEach(activity => {
+        if (!currentSentence.startTime) {
+            currentSentence.startTime = new Date(activity.timestamp);
+        }
+        currentSentence.endTime = new Date(activity.timestamp);
+
+        if (activity.type === 'keystroke') {
+
+            if (activity.key === 'BACKSPACE') currentSentence.backspaces++;
+    else if (activity.key === 'DELETE') currentSentence.deletes++;
+    else if (activity.key === 'DOT') currentSentence.text += '.';
+    else if (activity.key === 'SPACE') currentSentence.text += ' ';
+    else if (activity.key?.length === 1) currentSentence.text += activity.key;
+
+    // If the key is a sentence ender, finalize the current sentence and start a new one
+    if (['DOT', 'ENTER', '!', '?'].includes(activity.key) && currentSentence.text.trim().length > 0) {
+        finalizeSentence(currentSentence, sentences);
+        // Reset for the next sentence, carrying over the timestamp
+        currentSentence = { startTime: new Date(activity.timestamp), endTime: null, typedChars: 0, backspaces: 0, deletes: 0, pasteChars: 0, text: '' };
+    }
+        } else if (activity.type === 'paste') {
+            currentSentence.pasteChars += activity.text?.length || 0;
+        }
+    });
+
+    if (currentSentence.startTime) {
+        finalizeSentence(currentSentence, sentences);
+    }
+
+    return sentences.slice(-16); // Last 16 sentences
+}
+
+function finalizeSentence(sentence, sentences) {
+    const duration = (sentence.endTime - sentence.startTime) / 1000; // seconds
+    const words = sentence.text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const wpm = duration > 0 ? Math.round((words / duration) * 60) : 0;
+
+    sentences.push({
+        ...sentence,
+        duration: duration,
+        words: words,
+        wpm: wpm
+    });
+}
+
+function groupActivitiesByDay(data) {
+    const grouped = {};
+    
+    data.forEach(activity => {
+        const date = new Date(activity.timestamp).toISOString().split('T')[0];
+        
+        if (!grouped[date]) {
+            grouped[date] = {
+                wordsTyped: 0,
+                activeTime: 0,
+                pasteEvents: 0,
+                firstActivity: new Date(activity.timestamp),
+                lastActivity: new Date(activity.timestamp)
+            };
+        }
+
+        grouped[date].lastActivity = new Date(activity.timestamp);
+        
+        if (activity.type === 'keystroke' && activity.key === 'SPACE') {
+            grouped[date].wordsTyped++;
+        } else if (activity.type === 'paste') {
+            grouped[date].pasteEvents++;
+        }
+    });
+
+    // Calculate active time
+    Object.keys(grouped).forEach(date => {
+        const dayData = grouped[date];
+        grouped[date].activeTime = Math.round((dayData.lastActivity - dayData.firstActivity) / 60000); // minutes
+    });
+
+    return grouped;
+}
+
+function groupActivitiesByHour(data) {
+    const grouped = {};
+    
+    data.forEach(activity => {
+        const hour = new Date(activity.timestamp).getHours();
+        
+        if (!grouped[hour]) {
+            grouped[hour] = {
+                totalKeys: 0,
+                backspaces: 0,
+                words: 0,
+                duration: 0,
+                activities: []
+            };
+        }
+
+        grouped[hour].activities.push(activity);
+        
+        if (activity.type === 'keystroke') {
+            grouped[hour].totalKeys++;
+            if (activity.key === 'BACKSPACE' || activity.key === 'DELETE') {
+                grouped[hour].backspaces++;
+            } else if (activity.key === 'SPACE') {
+                grouped[hour].words++;
+            }
+        }
+    });
+
+    // Calculate metrics
+    Object.keys(grouped).forEach(hour => {
+        const hourData = grouped[hour];
+        const activities = hourData.activities;
+        
+        if (activities.length > 1) {
+            hourData.duration = (new Date(activities[activities.length - 1].timestamp) - new Date(activities[0].timestamp)) / 60000; // minutes
+        }
+        
+        hourData.avgWPM = hourData.duration > 0 ? Math.round((hourData.words / hourData.duration) * 60) : 0;
+        hourData.errorRate = hourData.totalKeys > 0 ? Math.round((hourData.backspaces / hourData.totalKeys) * 100) : 0;
+        hourData.efficiency = Math.max(0, 100 - hourData.errorRate);
+    });
+
+    return grouped;
+}
+
+    </script>
+</body>
+</html>

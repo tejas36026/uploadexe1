@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Rhythm Pattern</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .typing-rhythm {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .typing-rhythm h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .rhythm-canvas {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="typing-rhythm">
+        <h3>Typing Rhythm Pattern</h3>
+        <canvas id="rhythmCanvas" class="rhythm-canvas"></canvas>
+    </div>
+
+    <script>
+        function updateTypingRhythm(activities) {
+            const canvas = document.getElementById('rhythmCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const allEvents = activities
+                .filter(d => d.type === 'keystroke' || d.type === 'paste')
+                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            if (allEvents.length < 2) return;
+            
+            // Store event type and the amount of text for each event
+            const eventData = [];
+            let totalTextLength = 0;
+            for (let i = 0; i < allEvents.length; i++) {
+                const type = allEvents[i].type;
+                const textLength = (type === 'paste') ? allEvents[i].text.length : 1;
+                totalTextLength += textLength;
+                
+                const interval = (i > 0) ? new Date(allEvents[i].timestamp) - new Date(allEvents[i-1].timestamp) : 0;
+                
+                eventData.push({ type, textLength, interval });
+            }
+            
+            if (eventData.length === 0) return;
+
+            const realisticMaxInterval = Math.max(...eventData.map(d => d.interval).filter(i => i < 5000), 500);
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Use a running total of text length to determine X-position
+            let currentXPosition = 0;
+
+            for (let i = 0; i < eventData.length; i++) {
+                const event = eventData[i];
+                const segmentWidth = (event.textLength / totalTextLength) * width;
+
+                const y1_interval = (i > 0) ? eventData[i-1].interval : event.interval;
+                const y1 = height - (Math.min(y1_interval, realisticMaxInterval) / realisticMaxInterval) * height;
+                
+                let y2;
+
+                if (event.type === 'paste') {
+                    // For a paste, keep the line horizontal
+                    y2 = y1;
+                    ctx.strokeStyle = '#e74c3c';
+                    ctx.lineWidth = 4;
+                } else {
+                    // For a keystroke, calculate Y based on the interval
+                    y2 = height - (Math.min(event.interval, realisticMaxInterval) / realisticMaxInterval) * height;
+                    ctx.strokeStyle = '#3498db';
+                    ctx.lineWidth = 2;
+                }
+                
+                const x1 = currentXPosition;
+                const x2 = currentXPosition + segmentWidth;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // Update the X position for the next segment
+                currentXPosition = x2;
+            }
+
+            // Draw the gray dashed baseline
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Sample data for demonstration
+        const sampleActivities = [
+            { type: 'keystroke', key: 'H', timestamp: '2023-01-01T00:00:00' },
+            { type: 'keystroke', key: 'e', timestamp: '2023-01-01T00:00:01' },
+            { type: 'keystroke', key: 'l', timestamp: '2023-01-01T00:00:02' },
+            { type: 'keystroke', key: 'l', timestamp: '2023-01-01T00:00:03' },
+            { type: 'keystroke', key: 'o', timestamp: '2023-01-01T00:00:04' },
+            { type: 'keystroke', key: ' ', timestamp: '2023-01-01T00:00:05' },
+            { type: 'paste', text: 'World!', timestamp: '2023-01-01T00:00:10' },
+            { type: 'keystroke', key: 'H', timestamp: '2023-01-01T00:00:15' },
+            { type: 'keystroke', key: 'i', timestamp: '2023-01-01T00:00:16' },
+        ];
+
+        // Initialize with sample data
+        updateTypingRhythm(sampleActivities);
+    </script>
+</body>
+</html>

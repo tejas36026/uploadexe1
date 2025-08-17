@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Tracker Controls</title>
+    <style>
+        :root {
+            --green: #2ecc71;
+            --green-dark: #27ae60;
+            --red: #e74c3c;
+            --red-dark: #c0392b;
+            --blue: #3498db;
+            --blue-dark: #2980b9;
+            --gray: #95a5a6;
+            --gray-dark: #7f8c8d;
+            --dark-red: #c0392b;
+            --dark-red-hover: #a93226;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow-light: rgba(255, 255, 255, 0.1);
+            --shadow-dark: rgba(31, 38, 135, 0.37);
+        }
+
+        body {
+            margin: 0;
+            padding: 12px;
+            -webkit-app-region: drag;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px 0 var(--shadow-dark);
+            width: 275px;
+            height: 100px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+            align-items: center;
+            width: 100%;
+        }
+
+        .top-row {
+            justify-content: space-between;
+        }
+
+        .btn {
+            padding: 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 42px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn-icon {
+            width: 42px; /* Makes it square */
+        }
+        
+        .btn-start { background-color: var(--green); }
+        .btn-start:hover { background-color: var(--green-dark); }
+        
+        .btn-stop { background-color: var(--red); }
+        .btn-stop:hover { background-color: var(--red-dark); }
+        
+        .btn-print { background-color: var(--gray); flex-shrink: 0; }
+        .btn-print:hover { background-color: var(--gray-dark); }
+        
+        .btn-delete { background-color: var(--dark-red); flex-shrink: 0; }
+        .btn-delete:hover { background-color: var(--dark-red-hover); }
+
+        .btn-dashboard {
+            background-color: var(--blue);
+            width: 100%; /* Takes full width of its container */
+        }
+        .btn-dashboard:hover { background-color: var(--blue-dark); }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: white;
+            font-size: 13px;
+            flex-shrink: 0;
+            padding: 0 5px;
+        }
+        .print-dropdown-container {
+    position: relative;
+}
+
+.print-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    min-width: 150px;
+    z-index: 1000;
+    margin-top: 5px;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    color: #333;
+    cursor: pointer;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background: rgba(0,0,0,0.1);
+}
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--green);
+            cursor: pointer;
+        }
+
+        .icon-svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-row top-row">
+            <div class="action-buttons" style="display: flex; gap: 8px;">
+                <button id="toggleBtn" class="btn btn-icon btn-start" title="Start Tracking"></button>
+                <div class="print-dropdown-container">
+                    <button id="printBtn" class="btn btn-icon btn-print" title="Print Session">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+                    </button>
+                    <div id="printDropdown" class="print-dropdown" style="display: none;">
+                        <div class="dropdown-item" data-action="print-last-session">Print Last Session</div>
+                        <div class="dropdown-item" data-action="show-dashboard-for-choice">Choose App/Session to Print...</div>
+                    </div>
+                </div>
+                
+                <button id="deleteBtn" class="btn btn-icon btn-delete" title="Delete All Sessions">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="invisibleCheck" class="checkbox">
+                <label for="invisibleCheck">Invisible</label>
+            </div>
+        </div>
+        
+        <div class="controls-row">
+            <button id="dashboardBtn" class="btn btn-dashboard">Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        let isTracking = false;
+
+        const toggleBtn = document.getElementById('toggleBtn');
+        const printBtn = document.getElementById('printBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const dashboardBtn = document.getElementById('dashboardBtn');
+        const invisibleCheck = document.getElementById('invisibleCheck');
+
+        const playIcon = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+        const stopIcon = `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>`;
+
+        toggleBtn.addEventListener('click', async () => {
+            if (isTracking) {
+                await ipcRenderer.invoke('stop-tracking');
+                isTracking = false;
+                await ipcRenderer.invoke('show-dashboard');
+            } else {
+                await ipcRenderer.invoke('start-tracking');
+                isTracking = true;
+            }
+            updateUI();
+        });
+
+
+        printBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isVisible = printDropdown.style.display === 'block';
+    printDropdown.style.display = isVisible ? 'none' : 'block';
+});
+
+
+printDropdown.addEventListener('click', (event) => {
+    const action = event.target.getAttribute('data-action');
+    if (action) {
+        ipcRenderer.invoke(action); // This is the key line.
+        printDropdown.style.display = 'none';
+    }
+});
+
+
+window.addEventListener('click', () => {
+    if (printDropdown.style.display === 'block') {
+        printDropdown.style.display = 'none';
+    }
+});
+
+
+
+// Hide dropdown if user clicks anywhere else
+window.addEventListener('click', () => {
+    if (printDropdown.style.display === 'block') {
+        printDropdown.style.display = 'none';
+    }
+});
+
+
+
+        dashboardBtn.addEventListener('click', () => ipcRenderer.invoke('show-dashboard'));
+        invisibleCheck.addEventListener('change', () => ipcRenderer.invoke('toggle-invisible', invisibleCheck.checked));
+
+        deleteBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete ALL sessions? This cannot be undone.')) {
+                ipcRenderer.invoke('delete-all-sessions');
+            }
+        });
+        
+        function updateUI() {
+            if (isTracking) {
+                toggleBtn.className = 'btn btn-icon btn-stop';
+                toggleBtn.innerHTML = stopIcon;
+                toggleBtn.title = 'Stop Tracking';
+            } else {
+                toggleBtn.className = 'btn btn-icon btn-start';
+                toggleBtn.innerHTML = playIcon;
+                toggleBtn.title = 'Start Tracking';
+            }
+        }
+        
+        updateUI();
+    </script>
+</body>
+</html>
