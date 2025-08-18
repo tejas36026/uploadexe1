@@ -414,20 +414,14 @@ function stopTracking() {
                 url: currentSessionActivities[0]?.url || 'N/A'
             }
         };
-
         saveSessionCounter(); // Saves the new number so it's not lost
-
-        // Save with session number in filename for easy identification
         const filename = `session_${sessionCounter}_${Date.now()}.json`;
-        fs.writeFileSync(path.join(SESSIONS_DIR, filename), JSON.stringify(completeSessionData, null, 2));
-
+        fs.writeFile(path.join(SESSIONS_DIR, filename), JSON.stringify(completeSessionData, null, 2), (err) => { if (err) console.error('Error saving session:', err); });
         console.log(`💾 Session #${sessionCounter} saved as: ${filename}`);
 
-        // Increment session counter and save it
         sessionCounter++;
         saveSessionCounter();
 
-        // Tell the dashboard a new session was saved
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('new-session-saved');
             mainWindow.show();
@@ -571,7 +565,6 @@ ipcMain.handle('print-specific-app', async (event, { appName, appTitle, sessionI
 // });
 
 
-
 ipcMain.handle('print-last-session', async () => {
     try {
         // 1. Get all session files from the sessions directory.
@@ -628,6 +621,7 @@ ipcMain.handle('print-last-session', async () => {
         return { success: false, message: 'An error occurred while trying to print the last session.' };
     }
 });
+
 ipcMain.handle('print-app-list', async () => {
     try {
         // Step 1: Make sure the dashboard window exists to display the report.
@@ -682,13 +676,6 @@ ipcMain.handle('print-app-list', async () => {
         return { success: false, message: 'Failed to generate the application summary report.' };
     }
 });
-
-
-
-
-
-
-
 
 ipcMain.handle('print-choose-session', async () => {
     try {
@@ -769,6 +756,7 @@ function startMouseTracking() {
     
     trackMouse();
 }
+
 ipcMain.handle('get-all-sessions', () => {
     const sessionFiles = fs.readdirSync(SESSIONS_DIR).filter(file => file.endsWith('.json'));
     
@@ -809,7 +797,63 @@ ipcMain.handle('delete-all-sessions', () => {
       return { success: true };
     } catch (error) { console.error('Failed to delete sessions:', error); return { success: false }; }
   });
+
   
+
+  ipcMain.handle('search-all-data', async (event, searchTerm) => {
+    if (!searchTerm || searchTerm.trim() === '') {
+        return [];
+    }
+
+    const matchingSessionIds = new Set();
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+    try {
+        const sessionFiles = fs.readdirSync(SESSIONS_DIR).filter(file => file.endsWith('.json'));
+
+        for (const file of sessionFiles) {
+            const filePath = path.join(SESSIONS_DIR, file);
+            const sessionData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+            if (!sessionData || !Array.isArray(sessionData.activities)) {
+                continue;
+            }
+
+            let fullTextContent = '';
+            let metadataMatch = false;
+
+            // This loop checks metadata and builds a single string of all typed/pasted content
+            for (const activity of sessionData.activities) {
+                // Check for match in app name or window title
+                if ((activity.appName && activity.appName.toLowerCase().includes(lowerCaseSearchTerm)) ||
+                    (activity.windowTitle && activity.windowTitle.toLowerCase().includes(lowerCaseSearchTerm))) {
+                    metadataMatch = true;
+                }
+
+                // Build the full text string
+                if (activity.type === 'paste' && activity.text) {
+                    fullTextContent += activity.text + ' ';
+                } else if (activity.type === 'keystroke' && activity.key) {
+                    if (activity.key.length === 1) {
+                        fullTextContent += activity.key;
+                    } else if (activity.key === 'SPACE') {
+                        fullTextContent += ' ';
+                    }
+                }
+            }
+            const contentMatch = fullTextContent.toLowerCase().includes(lowerCaseSearchTerm);
+            if (metadataMatch || contentMatch) {
+                matchingSessionIds.add(file);
+            }
+        }
+    } catch (error)
+    {
+        console.error('Error during file search:', error);
+        return [];
+    }
+
+    return Array.from(matchingSessionIds);
+});
 
   
   ipcMain.handle('get-session-details', (event, sessionId) => {
